@@ -1,2 +1,12 @@
 .DS_Store
 .idea/
+build/
+build-tools/
+.pytest_cache
+__pycache__/
+*.egg-info/
+.installed.cfg
+*.egg
+env/
+develop-eggs/
+dist/
