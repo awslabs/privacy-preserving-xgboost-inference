@@ -68,9 +68,12 @@ class Interior:
         ans = ""
         for i in range(0, lvl):
             ans = ans + "\t"
-        ans = ans + str(self.id) + ":[" + str(self.feature_name) + "<" + \
-              str(self.cmp_val) + "] yes=" + str(self.if_true_child.id) + ",no=" + \
-              str(self.if_false_child.id) + ",missing=" + str(self.default_child.id) + "\n"
+
+        ans = "{}{}:[{}<{}] yes={},no={},missing={}\n".format(ans, str(self.id), str(self.feature_name),
+                                                              str(self.cmp_val),
+                                                              str(self.if_true_child.id), str(self.if_false_child.id),
+                                                              str(self.default_child.id))
+
         return ans + self.if_true_child.node_to_string(lvl + 1) + self.if_false_child.node_to_string(lvl + 1)
 
 
