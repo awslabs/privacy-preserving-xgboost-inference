@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 # import regualr expression
 import re
 import numpy as np
@@ -18,7 +21,10 @@ class Leaf:
         self.value = value
 
     # ignore input, this is a leaf
-    def eval(self, x):
+    def eval(self, x: pd.Series):
+        if x is None:
+            raise Exception("Invalid input string.")
+
         return self.value
 
     # print out the leaf
@@ -38,8 +44,8 @@ class Interior:
     # if_true_child: if the comparision statement is true.
     # if_false_child: if the comparision statement is false.
     # default_child: if the data[feature] is missing.
-    def __init__(self, id, feature_name, cmp_val, if_true_child, if_false_child, default_child):
-        self.id = id
+    def __init__(self, identifier, feature_name, cmp_val, if_true_child, if_false_child, default_child):
+        self.id = identifier
         self.feature_name = feature_name
         self.cmp_val = cmp_val
         self.if_true_child = if_true_child
@@ -47,7 +53,7 @@ class Interior:
         self.default_child = default_child
 
     # the evaluation of the tree.
-    def eval(self, x):
+    def eval(self, x: pd.Series):
 
         if np.isnan(x[self.feature_name]):
             return self.default_child.eval(x)
@@ -77,6 +83,9 @@ def tree_to_string(t):
 # Each tree_node will be parse to a tree_node stored in the Tree data structure.
 # The parsing recursively parse the tree_node value until we encounter the leaves.
 def parse_node_in_tree(s, lvl, feature_set, min_max):
+    # The index of the regular expression is defined based on the xgboost
+    # output formatting.
+
     # split the string into chunks where each represents a single tree_node
     # the first item in the list is the root for this tree
     current_node = re.split(r"\n", s)[0]
@@ -103,7 +112,7 @@ def parse_node_in_tree(s, lvl, feature_set, min_max):
             # values when encountered in the model. The Affine transform from
             # PPBoost.py already takes care of the precision up to 1.0e-7.
             #
-            # In the current HW model, we encountered a comparision
+            # In case we encountered a comparision
             # between ~1.0e-14 and 0. OPE cannot support this,
             # so manually set the tiny number (1.0e-14) to a bigger
             # number (1.0e-7) in order to make the comparison go thru.
@@ -127,8 +136,7 @@ def parse_node_in_tree(s, lvl, feature_set, min_max):
     leaf_strs = re.findall(r"[\w.-]+", current_node)
 
     if len(leaf_strs) != 9:
-        print("Invalid tree:\n" + current_node)
-        exit(1)
+        raise Exception("Invalid tree:\n" + current_node)
 
     # we've parsed the root, now find and parse the subtrees
     split_str = r"\n"
@@ -157,7 +165,7 @@ def parse_node_in_tree(s, lvl, feature_set, min_max):
     if '.' in leaf_strs[2]:
         node_value = float(leaf_strs[2])
 
-        # Similar to the line 112 above.
+        # Similar to above (precision issue)
         if abs(node_value) <= PRECISION_BOUND_COMP_ZERO:
             node_value = SETUP_BOUND_COMP_ZERO * int(np.sign(node_value))
     else:
@@ -193,7 +201,7 @@ def model_to_trees(model, min_max):
     # list of string (representing trees)
     # the get_dump() returns a list strings, each tree is represented in a particular format
     # (seperated by \n or \t's.
-    #  e.g. one of the tree' string representation is below:
+    #  For example: one of the tree' string representation is below:
     #  '0:[XXX<3] yes=1,no=2,missing=1\n\t1:[Fare<13.6458502] yes=3,no=4,missing=3\n\t\t
     #  3:leaf=-0.00585523667\n\t\t4:leaf=0.0201724116\n\t2:leaf=-0.0114313215\n
     # -->

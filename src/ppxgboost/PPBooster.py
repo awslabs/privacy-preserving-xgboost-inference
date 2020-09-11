@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import base64
 
 import hmac
@@ -7,19 +10,15 @@ import string
 import math
 
 import numpy as np
-from phe import PaillierPublicKey
 
 import ppxgboost.BoosterParser as bs
 import ppxgboost.PaillierAPI as paillier
 
 # multiplicative factor for encoding the message when using OPE
-from ope.pyope.ope import OPE, DEFAULT_IN_RANGE_END
+from ope.pyope.ope import DEFAULT_IN_RANGE_END
 from ppxgboost.PPKey import PPBoostKey
 
-TEST_DEBUG = False
-
-# String Encoding for the bytearray.
-ENCODING = 'utf-8'
+import encodings
 
 # This is the maximum number that the OPE encryption can support.
 #   Currently, we also set this to be the maximum number that
@@ -76,16 +75,16 @@ def random_string(string_length=16):
 # hmac the msg using utf-8 encoding (python3)
 # we use hmac as a PRF to create 'pseudonyms' for the features.
 # A reference that shows hmac is a PRF (see Theorem 1 in https://eprint.iacr.org/2014/578.pdf)
-def hmac_msg(prf_hash_key, feature):
+# use hmac to instaniate prf.
+def hmac_msg(prf_key_hash, feature):
     """
     Using hmac to produce the pseudonyms for the feature vector.
-    :param prf_hash_key: hash key as bytes
+    :param prf_key_hash: hash key as bytes
     :param feature: feature name as a string (encoded using 'UTF-8')
     :return: hmac value
     """
-    message = bytes(feature, ENCODING)
-    # secret = bytes(prf_hash_key, ENCODING)
-    sig = base64.b64encode(hmac.new(prf_hash_key, message, hashlib.sha256).digest())
+    message = bytes(feature, encodings.utf_8.getregentry().name)
+    sig = base64.b64encode(hmac.new(prf_key_hash, message, hashlib.sha256).digest())
     return sig.decode()
 
 
@@ -124,7 +123,8 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
         num = metaData.affine_transform(tree_node.cmp_val)
 
         if num > MAX_NUM_OPE_ENC or num < 0:
-            raise Exception("Invalid input: input is out of range, system cannot encrypt", num)
+            raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+                            "), system cannot encrypt", num)
 
         tree_node.cmp_val = ope.encrypt(num)
 
@@ -180,7 +180,7 @@ def predict_binary(trees, vector, default_base_score=0.5):
     :param vector: a list of input vectors
     :return: the prediction values (summation of the values from all the leafs)
     """
-    result = list()
+    result = []
     for index, row in vector.iterrows():
         # compute the score for all of the input vectors
         result.append(predict_single_input_binary(trees, row))
@@ -199,7 +199,6 @@ def predict_single_input_multiclass(trees, num_classes, vector):
     :return: the predicted score
     """
     num_trees = len(trees)
-    # num_per_estimator = num_trees / num_classes
 
     # sum of score for each category: exp(score)
     result = []
@@ -281,8 +280,7 @@ def client_decrypt_prediction_multiclass(private_key, predictions):
         decrypted_scores = []
         for enc_scores in enc_pred:
             # decrypts the encrypted scores.
-            if not TEST_DEBUG:
-                decrypted_scores.append(paillier.decrypt(private_key, enc_scores))
+            decrypted_scores.append(paillier.decrypt(private_key, enc_scores))
         decrypted_pred_list.append(decrypted_scores)
     result = client_side_multiclass_compute(decrypted_pred_list)
     return np.array(result)
@@ -324,7 +322,8 @@ def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
                 noramlized_feature = metadata.affine_transform(row[feature])
 
                 if noramlized_feature > MAX_NUM_OPE_ENC or noramlized_feature < 0:
-                    raise Exception("Invalid input: input is out of range. The system cannot encrypt",
+                    raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+                                    "). The system cannot encrypt",
                                     noramlized_feature)
 
                 ope_value = ope.encrypt(int(noramlized_feature))

@@ -1,7 +1,7 @@
 # Privacy-Preserving xgBoost ML Prediction
 
 ## Description
-This repo is a prototype implementation of privacy-preserving xgBoost (https://xgboost.readthedocs.io/en).
+This repo is a prototype implementation of privacy-preserving xgBoost (https://xgboost.readthedocs.io/en/latest/).
 We adopt several property-preserving encryption schemes to encrypt the xgBoost model so that
 the privacy-preserving model can predict an encrypted data.
 

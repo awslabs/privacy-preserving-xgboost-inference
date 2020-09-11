@@ -1,14 +1,13 @@
-import pytest
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 # This test file tests the Key wrapper (PPKey.py)
 from random import randrange
 from secrets import token_bytes
-
 from ppxgboost import PaillierAPI as paillier
-
-from ope.pyope.ope import OPE
 from ppxgboost.PPKey import ClientKey
 from ppxgboost.PPKey import PPBoostKey
+from ope.pyope.ope import OPE
 
 
 class Test_Key:

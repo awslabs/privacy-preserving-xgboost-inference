@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 import phe
 
@@ -25,7 +28,8 @@ def message_modulus_size(public_key):
     will cause overflow.
     """
     # this message is defined in paillier message encoding to avoid overflow.
-    # the input message (specified in the PHE library --> n/3
+    # the input message (specified in the PHE library --> n/3) -> the message space
+    # is not actually (0, n)
     return public_key.n // 3
 
 

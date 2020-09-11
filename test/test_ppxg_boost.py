@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 
 # This test file mainly test binary prediction for xgboost
@@ -5,7 +8,6 @@ import pytest
 
 import pickle as pl
 import pandas as pd
-import os
 import random
 
 from secrets import token_bytes
@@ -15,34 +17,15 @@ from ope.pyope.ope import OPE, ValueRange
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPBooster import MetaData
 
-DEBUG = True
-
-
-def debug_print(s):
-    """
-    # Debugging print
-    :param s: things to print
-    """
-    if DEBUG:
-        print(s)
-
-
-# data directory
-# data_dir = "./data/titanic_data/"
-
-# test data directory
-
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
 class Test_PPMParsr:
 
     # the testing for the parsing the model and the dumped trees.
     def test_model_parse(self):
-        dirpath = os.getcwd()
-        print("current directory is : " + dirpath)
-        dir = "test_files/model_file.pkl"
+        dir_path = "test_files/model_file.pkl"
 
-        with open(dir, 'rb') as f:  # will close() when we leave this block
+        with open(dir_path, 'rb') as f:  # will close() when we leave this block
             testing_model = pl.load(f)
 
         # get the trees in string representation.
@@ -54,14 +37,13 @@ class Test_PPMParsr:
 
         # for each one of trees, test if the parsed tree is the same as the tree object (calling print in tree object)
         for i in range(len(parsing_trees)):
-            print("Test tree[" + str(i) + "]")
             assert dump_tree[i] == boostparser.tree_to_string(parsing_trees[i])
 
     def test_ope_node(self):
-        '''
+        """
         Test vector on evaluating the decision tree based on OPE
         :return:
-        '''
+        """
         t1 = '0:[Pclass<3] yes=1,no=2,missing=1\n\t1:[Fare<13] yes=3,no=4,missing=3\n\t\t3:leaf=323\n\t\t4:[' \
              'Age<42] yes=9,no=10,missing=10\n\t\t\t9:leaf=32434\n\t\t\t10:leaf=43124\n\t2:[Age<6] yes=5,' \
              'no=6,missing=6\n\t\t5:[SibSp<32] yes=11,no=12,' \
@@ -104,7 +86,7 @@ class Test_PPMParsr:
         # just for testing purposes.
         metaDataMinMax = MetaData({'min': 0, 'max': 1000})
 
-        # 1. Encrypts the input vector for prediction (using prf_hash_key and ope-encrypter) based on the feature set.
+        # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
         ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)
 
         # 2. process the tree into ope_enc_tree
@@ -212,4 +194,4 @@ class Test_PPMParsr:
         # decrypted the message using the correct private key.
         check_number = paillier.decrypt(priv_key, encrypted_number)
 
-        return message == check_number
+        assert message == check_number
