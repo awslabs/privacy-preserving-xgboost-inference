@@ -18,7 +18,7 @@ Go to the test directory ('cd test'), run the following:
 
 
 The OPE scheme is from the open source (https://github.com/tonyo/pyope).
- It implements the OPE scheme by Boldyreva et. al. The source code is place in the 'src/ope/' directory.
+ It implements the OPE scheme by Boldyreva et. al. The source code is place in the 'third-party/ope/' directory.
  We also leverage the partially homomorphic encryption scheme
  (Paillier Cryptosystem: https://en.wikipedia.org/wiki/Paillier_cryptosystem), run __pip install phe__ to
  install this.
