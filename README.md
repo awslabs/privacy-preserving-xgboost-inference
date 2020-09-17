@@ -11,6 +11,7 @@ the privacy-preserving model can predict an encrypted data.
 
 When run the test files, first in the repo directory.
 
+- pip install -r requirement.txt
 - pip install -e .
 
 Go to the test directory ('cd test'), run the following:
