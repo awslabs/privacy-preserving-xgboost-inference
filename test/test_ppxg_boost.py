@@ -5,7 +5,7 @@ import pytest
 
 # This test file mainly test binary prediction for xgboost
 # It tests all of the interfaces using OPE, Paillier, etc.
-
+import sys
 import pickle as pl
 import pandas as pd
 import random
@@ -16,6 +16,8 @@ from ppxgboost import PPBooster as ppbooster
 from ope.pyope.ope import OPE, ValueRange
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPBooster import MetaData
+
+sys.path.append('../third-party')
 
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
