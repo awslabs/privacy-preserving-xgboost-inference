@@ -1,8 +1,8 @@
 pandas==0.25.3
 phe==1.4.0
-xgboost==0.90
+xgboost
 numpy==1.17.4
-scikit-learn==0.21.3
-flask==1.1.1
+scikit-learn
+flask
 pytest==5.1.2
 -e .
