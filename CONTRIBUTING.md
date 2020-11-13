@@ -11,7 +11,7 @@ information to effectively respond to your bug report or contribution.
 This work is research prototype and it has not been used or tested in production environment. Privacy-preserving XGBoost uses a non-standard security model.
 Unlike a traditional security model (such as [semantic security](https://en.wikipedia.org/wiki/Semantic_security)), the model operator learns information about clients' encrypted queries (for instance, the relative order, i.e encrypted value x > encrypted value y).
 The model operator might also learn how one encrypted query might be related to another. In particular, the model operator can detect whether the encrypted response is the same.
-We recommend users read the detailed security analysis in our paper.
+We recommend users read the detailed security analysis in our paper (https://arxiv.org/abs/2011.04789).
 
 ## Reporting Bugs/Feature Requests
 
