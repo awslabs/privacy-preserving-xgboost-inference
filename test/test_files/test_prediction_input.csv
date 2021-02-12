@@ -1,0 +1,23 @@
+PassengerId,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embarked
+892,3,"Kelly, Mr. James",male,34.5,0,0,330911,7.8292,,Q
+893,3,"Wilkes, Mrs. James (Ellen Needs)",female,47,1,0,363272,7,,S
+894,2,"Myles, Mr. Thomas Francis",male,62,0,0,240276,9.6875,,Q
+895,3,"Wirz, Mr. Albert",male,27,0,0,315154,8.6625,,S
+896,3,"Hirvonen, Mrs. Alexander (Helga E Lindqvist)",female,22,1,1,3101298,12.2875,,S
+897,3,"Svensson, Mr. Johan Cervin",male,14,0,0,7538,9.225,,S
+898,3,"Connolly, Miss. Kate",female,30,0,0,330972,7.6292,,Q
+899,2,"Caldwell, Mr. Albert Francis",male,26,1,1,248738,29,,S
+900,3,"Abrahim, Mrs. Joseph (Sophie Halaut Easu)",female,18,0,0,2657,7.2292,,C
+901,3,"Davies, Mr. John Samuel",male,21,2,0,A/4 48871,24.15,,S
+902,3,"Ilieff, Mr. Ylio",male,,0,0,349220,7.8958,,S
+903,1,"Jones, Mr. Charles Cresson",male,46,0,0,694,26,,S
+904,1,"Snyder, Mrs. John Pillsbury (Nelle Stevenson)",female,23,1,0,21228,82.2667,B45,S
+905,2,"Howard, Mr. Benjamin",male,63,1,0,24065,26,,S
+906,1,"Chaffee, Mrs. Herbert Fuller (Carrie Constance Toogood)",female,47,1,0,W.E.P. 5734,61.175,E31,S
+907,2,"del Carlo, Mrs. Sebastiano (Argenia Genovesi)",female,24,1,0,SC/PARIS 2167,27.7208,,C
+908,2,"Keane, Mr. Daniel",male,35,0,0,233734,12.35,,Q
+909,3,"Assaf, Mr. Gerios",male,21,0,0,2692,7.225,,C
+910,3,"Ilmakangas, Miss. Ida Livija",female,27,1,0,STON/O2. 3101270,7.925,,S
+911,3,"Assaf Khalil, Mrs. Mariana (Miriam"")""",female,45,0,0,2696,7.225,,C
+912,1,"Rothschild, Mr. Martin",male,55,1,0,PC 17603,59.4,,C
+913,3,"Olsen, Master. Artur Karl",male,9,0,1,C 17368,3.1708,,S
