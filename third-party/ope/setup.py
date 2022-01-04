@@ -23,7 +23,7 @@ setup(
     author='Anton Ovchinnikov',
     author_email='anton.ovchi2nikov@gmail.com',
     license='MIT',
-    packages=['pyope'],
+    packages=['ope.pyope'],
     install_requires=[
         'cryptography>=1.1',
         'six>=1.5.0',

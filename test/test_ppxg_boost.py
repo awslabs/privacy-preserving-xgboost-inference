@@ -3,7 +3,7 @@
 
 import pytest
 
-# This test file mainly test binary prediction for xgboost
+# This test file mainly tests binary prediction for xgboost
 # It tests all of the interfaces using OPE, Paillier, etc.
 import sys
 import pickle as pl
@@ -21,7 +21,7 @@ sys.path.append('../third-party')
 
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
-class Test_PPMParsr:
+class Test_PPMParser:
 
     # the testing for the parsing the model and the dumped trees.
     def test_model_parse(self):
