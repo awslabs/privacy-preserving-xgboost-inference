@@ -134,12 +134,14 @@ def parse_node_in_tree(s, lvl, feature_set, min_max):
     # a 'list' containing words or numbers.
     #
     # out <- re.findall(r"[\w.-]+", s) will returns a list contains the parsing of the string.
-    # e.g. 0:[XYZ<3] yes=1,no=2,missing=1
-    # str = [0, XYZ, 3, yes, 1, no, 2, missing, 1]
-    leaf_strs = re.findall(r"[\w.-]+", current_node)
+    # e.g. 0:[XYZ ABC<3] yes=1,no=2,missing=1
+    # str = [0, XYZ ABC, 3, yes, 1, no, 2, missing, 1]
 
-    if len(leaf_strs) != 9:
-        raise Exception("Invalid tree:\n" + current_node)
+    pattern = re.compile(r"([0-9]+):\[([\w\s.-]+)[<>=]+(.+)\] (\w+)=(.+),(\w+)=(.+),(\w+)=(.+)")
+    match = pattern.match(current_node)
+    if match is None:
+        raise Exception("Invalid tree:\n" + current_node + "\nNote that column names can only contain alpha-numeric characters, whitespace, '.', or '-'.")
+    leaf_strs = match.groups()
 
     # we've parsed the root, now find and parse the subtrees
     split_str = r"\n"
@@ -194,7 +196,7 @@ def parse_tree(s, feature_set, min_max):
 # The function parses the pickle file to a model (xgboost)
 def model_to_trees(model, min_max):
     """
-    Parse the mode to trees
+    Parse the model to trees
     :param min_max: dictionary key {'min','max'}
             min_max['min'] min_max['max']
     :param model: the xgboost model
