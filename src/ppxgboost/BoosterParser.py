@@ -85,6 +85,11 @@ def tree_to_string(t):
 # parse each tree_node of the tree based on the level.
 # Each tree_node will be parse to a tree_node stored in the Tree data structure.
 # The parsing recursively parse the tree_node value until we encounter the leaves.
+#
+# This function parses the output of https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.Booster.get_dump
+# The XGBoost package does not provide a way to read a model based on the output of `get_dump`, and we do not
+# control the format of the string, so this function provides a custom parser for that strings returned by
+# `get_dump`.
 def parse_node_in_tree(s, lvl, feature_set, min_max):
     # The index of the regular expression is defined based on the xgboost
     # output formatting.
@@ -129,17 +134,19 @@ def parse_node_in_tree(s, lvl, feature_set, min_max):
     # '\w' means find all word characters - e.g. matches a "word" character: a letter or digit
     #   or underbar [a-zA-Z0-9_] (Note that \w contains underscore)
     # '.' and '-' are literal '.' and '-' --> add to to capture if some feature name contains '-' or '.'
-    # The square bracket is used to indicate a set of characters. '+' indicates the repetitions.
-    # Therefore, re.findall(r"[\w.-]+", s) split the statement (i.e. tree tree_node) into
-    # a 'list' containing words or numbers.
+    # The square bracket is used to indicate a set of characters. '+' indicates the repetitions,
+    # and () indicates a match group.
+    # The regex below splits the statement (i.e. tree tree_node) into
+    # a list of strings. We match the column name with `[\w\s.-]+`, which allow for alpha-numeric
+    # characters, whitespace, `.`, and `-`.
     #
-    # out <- re.findall(r"[\w.-]+", s) will returns a list contains the parsing of the string.
-    # e.g. 0:[XYZ<3] yes=1,no=2,missing=1
-    # str = [0, XYZ, 3, yes, 1, no, 2, missing, 1]
-    leaf_strs = re.findall(r"[\w.-]+", current_node)
-
-    if len(leaf_strs) != 9:
-        raise Exception("Invalid tree:\n" + current_node)
+    # e.g. current_node = '0:[XYZ ABC<3] yes=1,no=2,missing=1'
+    # leaf_strs = ['0', 'XYZ ABC', '3', 'yes', '1', 'no', '2', 'missing', '1']
+    pattern = re.compile(r"(\w+):\[([\w\s.-]+)[<>=]+(.+)\] (\w+)=(.+),(\w+)=(.+),(\w+)=(.+)")
+    match = pattern.match(current_node)
+    if match is None:
+        raise Exception("Invalid tree:\n" + current_node + "\nNote that column names can only contain alpha-numeric characters, whitespace, '.', or '-'.")
+    leaf_strs = match.groups()
 
     # we've parsed the root, now find and parse the subtrees
     split_str = r"\n"
@@ -194,7 +201,7 @@ def parse_tree(s, feature_set, min_max):
 # The function parses the pickle file to a model (xgboost)
 def model_to_trees(model, min_max):
     """
-    Parse the mode to trees
+    Parse the model to trees
     :param min_max: dictionary key {'min','max'}
             min_max['min'] min_max['max']
     :param model: the xgboost model
