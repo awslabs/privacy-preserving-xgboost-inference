@@ -9,21 +9,17 @@ An extended abstract of this work (https://arxiv.org/abs/2011.04789) appears in 
 
 ## Development
 
-*pip install pytest*
+This package requires python>=3.8. Install the dependencies with
 
-When run the test files, first in the repo directory.
+ - xargs -L 1 pip install < requirements.txt
 
-- pip3 install -r requirements.txt
+This command installs the dependencies in a specific order.
 
-Go to the test directory ('cd test'), run the following:
+Run the tests with:
+- cd test
 - python -m pytest
 
-
-The OPE scheme is from the open source (https://github.com/tonyo/pyope).
- It implements the OPE scheme by Boldyreva et. al. The source code is place in the 'third-party/ope/' directory.
- We also leverage the partially homomorphic encryption scheme
- (Paillier Cryptosystem: https://en.wikipedia.org/wiki/Paillier_cryptosystem), run __pip install phe__ to
- install this.
+This package depends on the Paillier partially homomorphic encryption scheme (https://en.wikipedia.org/wiki/Paillier_cryptosystem). It also includes source code for a modified version of Boldyreva et. al.'s order-preserving encryption scheme (https://github.com/tonyo/pyope). The source code is place in the 'third-party/ope/' directory.
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md)
 
