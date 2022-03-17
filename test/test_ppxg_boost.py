@@ -16,9 +16,7 @@ from ppxgboost import PPBooster as ppbooster
 from ope.pyope.ope import OPE, ValueRange
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPBooster import MetaData
-
-sys.path.append('../third-party')
-
+from ppxgboost.Tree import *
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
 class Test_PPMParser:
@@ -35,11 +33,11 @@ class Test_PPMParser:
         dump_tree = testing_model.get_dump()
 
         # use boostparser to convert the model (in strings) to tree objects.
-        parsing_trees, feature_set, min_max = boostparser.model_to_trees(testing_model, {'min': 0, 'max': 1})
+        model = boostparser.model_to_trees(testing_model)
 
         # for each one of trees, test if the parsed tree is the same as the tree object (calling print in tree object)
-        for i in range(len(parsing_trees)):
-            assert dump_tree[i] == boostparser.tree_to_string(parsing_trees[i])
+        for i in range(len(model.trees)):
+            assert dump_tree[i] == boostparser.tree_to_string(model.trees[i])
 
     def test_ope_node(self):
         """
@@ -54,13 +52,10 @@ class Test_PPMParser:
         input_vector = pd.read_csv('test_files/test_prediction_input.csv')
 
         ################################################################################################
-        # The folowing is to compute the scores for the decision tree on input vectors in plaintext!
+        # The following is to compute the scores for the decision tree on input vectors in plaintext
         ################################################################################################
-        feature_set = set()
 
-        # As this test just to test the correctness of the encrypt_tree_node method
-        # add min_max just to 'fake' some min-max value for this test
-        tree = boostparser.parse_tree(t1, feature_set, min_max={'min': 0, 'max': 1})
+        tree = boostparser.parse_tree(t1)
 
         # The score list value in plaintext.
         score_value = list()
@@ -69,7 +64,7 @@ class Test_PPMParser:
             score_value.append(tree.eval(row))
 
         ################################################################################################
-        # The folowing is to compute the scores based on the OPE processed decision tree
+        # The following is to compute the scores based on the OPE processed decision tree
         ################################################################################################
 
         # Set up encrytion materials.
@@ -81,6 +76,8 @@ class Test_PPMParser:
         # create a copy of the input vector and plaintext trees
         test_input_vector = input_vector.copy()
         enc_tree = tree
+        feature_set = tree.get_features()
+        print("Feature set: " + str(list(feature_set)))
 
         public_key, private_key = paillier.he_key_gen()
 
@@ -92,7 +89,10 @@ class Test_PPMParser:
         ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)
 
         # 2. process the tree into ope_enc_tree
+        print("Encrypted feature set: " + str(list(enc_tree.get_features())))
         ppbooster.enc_tree_node(public_key, prf_key, encrypter, enc_tree, metaDataMinMax)
+        print("Encrypted feature set: " + str(list(enc_tree.get_features())))
+
 
         # 3. OPE evaluation based on OPE encrypted values in the tree nodes.
         encrypted_value = list()

@@ -9,7 +9,6 @@ from ppxgboost.PPKey import ClientKey
 from ppxgboost.PPKey import PPBoostKey
 from ope.pyope.ope import OPE
 
-
 class Test_Key:
     def test_get_PPBoost_key(self):
         """

@@ -129,6 +129,8 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
         tree_node.cmp_val = ope.encrypt(num)
 
         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
+        # TODO: we end up recomputing HMACs many times, which may be slowing encryption down. Cache?
+        # print("TreeEnc: HMAC of " + tree_node.feature_name + " is " + hmac_code)
         tree_node.feature_name = hmac_code
 
         # Recurse to the if true tree_node
