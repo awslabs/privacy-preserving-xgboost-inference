@@ -46,12 +46,12 @@ class Leaf(TreeNode):
         return ans + str(self.id) + ":leaf=" + str(self.value) + "\n"
 
     # Get a set of all features used in this XGBoost tree
-    def _get_features(self):
+    def get_features(self):
         return set()
 
     # Get the minimum and maximum values used for comparison in the tree
     # This metadata is needed when selecting encryption parameters.
-    def _get_extreme_values(self):
+    def get_extreme_values(self):
         max_val = float('-inf')
         min_val = float('inf')
         return min_val, max_val
@@ -67,13 +67,9 @@ class Leaf(TreeNode):
     # number (1.0e-7) in order to make the comparison go thru.
     # As a result, the current methodology cannot support more than 7 digits of
     # floating number precision.
-    def _discretize(self):
+    def discretize(self):
         if abs(self.value) <= PRECISION_BOUND_COMP_ZERO:
             self.value = SETUP_BOUND_COMP_ZERO * int(np.sign(self.value))
-
-    def _traverse(self, f, _):
-        return f(self)
-
 
 # An interior node in the tree data structure.
 class Interior(TreeNode):
@@ -127,52 +123,25 @@ class Interior(TreeNode):
         return ans + self.if_true_child.node_to_string(lvl + 1) + self.if_false_child.node_to_string(lvl + 1)
 
     # Get a set of all features used in this XGBoost tree
-    def _get_features(self):
+    def get_features(self):
         feature_set = set()
         feature_set.add(self.feature_name)
+        feature_set = feature_set.union(self.if_true_child.get_features())
+        feature_set = feature_set.union(self.if_false_child.get_features())
         return feature_set
 
     # Get the minimum and maximum values used for comparison in the tree
     # This metadata is needed when selecting encryption parameters.
-    def _get_extreme_values(self):
-        return self.cmp_val, self.cmp_val
+    def get_extreme_values(self):
+        min1, max1 = self.if_true_child.get_extreme_values()
+        min2, max2 = self.if_false_child.get_extreme_values()
+        return min(min1, min2, self.cmp_val), max(max1, max2, self.cmp_val)
 
-    def _discretize(self):
+    def discretize(self):
         if abs(self.cmp_val) <= PRECISION_BOUND_COMP_ZERO:
             self.cmp_val = SETUP_BOUND_COMP_ZERO * int(np.sign(self.cmp_val))
-
-    def _traverse(self, f, combo):
-        self_val = f(self)
-        true_val = self.if_true_child._traverse(f, combo)
-        false_val = self.if_false_child._traverse(f, combo)
-        return combo(self_val, true_val, false_val)
-
-
-# traverse a tree to collect the features in the tree
-def get_features(t):
-    def combo(set1, set2, set3):
-        s = set()
-        s = s.union(set1)
-        s = s.union(set2)
-        s = s.union(set3)
-        return s
-    return t._traverse(lambda t1: t1._get_features(), combo)
-
-# traverse a tree to collect the extreme values in the tree
-def get_extreme_values(t):
-    def combo(minmax1, minmax2, minmax3):
-        min1, max1 = minmax1
-        min2, max2 = minmax2
-        min3, max3 = minmax3
-        return min(min1, min2, min3), max(max1, max2, max3)
-    return t._traverse(lambda t1: t1._get_extreme_values(), combo)
-
-# traverse a tree to discretize each node
-def discretize(t):
-    def combo(x, y, z):
-        return None
-    return t._traverse(lambda t1: t1._discretize(), combo)
-
+        self.if_true_child.discretize()
+        self.if_false_child.discretize()
 
 # Create a string representation of the tree. This should be the same as the xgboost model dump for the tree.
 def tree_to_string(t: TreeNode):
