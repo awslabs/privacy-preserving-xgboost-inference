@@ -76,7 +76,7 @@ class Test_PPMParser:
         # create a copy of the input vector and plaintext trees
         test_input_vector = input_vector.copy()
         enc_tree = tree
-        feature_set = tree.get_features()
+        feature_set = get_features(tree)
         print("Feature set: " + str(list(feature_set)))
 
         public_key, private_key = paillier.he_key_gen()
@@ -89,9 +89,9 @@ class Test_PPMParser:
         ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)
 
         # 2. process the tree into ope_enc_tree
-        print("Encrypted feature set: " + str(list(enc_tree.get_features())))
+        print("Encrypted feature set: " + str(list(get_features(enc_tree))))
         ppbooster.enc_tree_node(public_key, prf_key, encrypter, enc_tree, metaDataMinMax)
-        print("Encrypted feature set: " + str(list(enc_tree.get_features())))
+        print("Encrypted feature set: " + str(list(get_features(enc_tree))))
 
 
         # 3. OPE evaluation based on OPE encrypted values in the tree nodes.

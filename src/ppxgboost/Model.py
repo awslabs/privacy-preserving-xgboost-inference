@@ -1,29 +1,37 @@
 
 # An XGBoost model is a collection of TreeNodes
 
+import ppxgboost.Tree
+
 class XGBoostModel:
 
     def __init__(self, trees):
         self.trees = list(trees)
-
-    def get_features(self):
-        feature_set = set()
-        for t in self.trees:
-            feature_set = feature_set.union(t.get_features())
-        return feature_set
 
     # this probably isn't the right API, but it works for now
     def update_extreme_values(self, min_max):
         forest_min, forest_max = self.get_extreme_values()
         return {'min': min(min_max['min'], forest_min), 'max': max(min_max['max'], forest_max)}
 
+    def get_features(self):
+        def combo(set1, set2):
+            return set1.union(set2)
+        return self._combine_trees(ppxgboost.Tree.get_features, combo)
+
     def get_extreme_values(self):
-        min_val = float('inf')
-        max_val = float('-inf')
+        def combo(minmax1, minmax2):
+            min1, max1 = minmax1
+            min2, max2 = minmax2
+            return min(min1, min2), max(max1, max2)
+        return self._combine_trees(ppxgboost.Tree.get_extreme_values, combo)
 
-        for t in self.trees:
-            t_min, t_max = t.get_extreme_values()
-            min_val = min(min_val, t_min)
-            max_val = max(max_val, t_max)
+    def discretize(self):
+        self._combine_trees(ppxgboost.Tree.discretize, lambda x, y: x)
 
-        return min_val, max_val
+    # combine a tree function into a single value for the forest/model
+    # internal function
+    def _combine_trees(self, f, combo):
+        acc = f(self.trees[0])
+        for i in range(1, len(self.trees)):
+            acc = combo(acc, f(self.trees[i]))
+        return acc

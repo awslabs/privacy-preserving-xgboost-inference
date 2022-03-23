@@ -46,15 +46,33 @@ class Leaf(TreeNode):
         return ans + str(self.id) + ":leaf=" + str(self.value) + "\n"
 
     # Get a set of all features used in this XGBoost tree
-    def get_features(self):
+    def _get_features(self):
         return set()
 
     # Get the minimum and maximum values used for comparison in the tree
     # This metadata is needed when selecting encryption parameters.
-    def get_extreme_values(self):
+    def _get_extreme_values(self):
         max_val = float('-inf')
         min_val = float('inf')
         return min_val, max_val
+
+    # As Client's query is unpredictible, it's impossible
+    # this is only to avoid the comparision between two extreme tiny
+    # values when encountered in the model. The Affine transform from
+    # PPBoost.py already takes care of the precision up to 1.0e-7.
+    #
+    # In case we encountered a comparision
+    # between ~1.0e-14 and 0. OPE cannot support this,
+    # so manually set the tiny number (1.0e-14) to a bigger
+    # number (1.0e-7) in order to make the comparison go thru.
+    # As a result, the current methodology cannot support more than 7 digits of
+    # floating number precision.
+    def _discretize(self):
+        if abs(self.value) <= PRECISION_BOUND_COMP_ZERO:
+            self.value = SETUP_BOUND_COMP_ZERO * int(np.sign(self.value))
+
+    def _traverse(self, f, _):
+        return f(self)
 
 
 # An interior node in the tree data structure.
@@ -70,6 +88,10 @@ class Interior(TreeNode):
         super().__init__(identifier)
         self.feature_name = feature_name
         self.cmp_val = cmp_val
+
+        if (if_true_child != default_child and if_false_child != default_child):
+            raise Exception("Default child must be either the 'true' child or the 'false' child")
+
         self.if_true_child = if_true_child
         self.if_false_child = if_false_child
         self.default_child = default_child
@@ -105,27 +127,51 @@ class Interior(TreeNode):
         return ans + self.if_true_child.node_to_string(lvl + 1) + self.if_false_child.node_to_string(lvl + 1)
 
     # Get a set of all features used in this XGBoost tree
-    def get_features(self):
-        # TODO: these are written assuming that `default_child` could be
-        # different from both `if_true_child` and `if_false_child`. I'm
-        # not sure if this is overly general; we might be able to simplify it.
+    def _get_features(self):
         feature_set = set()
         feature_set.add(self.feature_name)
-        feature_set = feature_set.union(self.if_true_child.get_features())
-        feature_set = feature_set.union(self.if_false_child.get_features())
-        feature_set = feature_set.union(self.default_child.get_features())
         return feature_set
-
 
     # Get the minimum and maximum values used for comparison in the tree
     # This metadata is needed when selecting encryption parameters.
-    def get_extreme_values(self):
-        min1, max1 = self.if_true_child.get_extreme_values()
-        min2, max2 = self.if_false_child.get_extreme_values()
-        min3, max3 = self.default_child.get_extreme_values()
-        min_val = min(min1, min2, min3, self.cmp_val)
-        max_val = max(max1, max2, max3, self.cmp_val)
-        return min_val, max_val
+    def _get_extreme_values(self):
+        return self.cmp_val, self.cmp_val
+
+    def _discretize(self):
+        if abs(self.cmp_val) <= PRECISION_BOUND_COMP_ZERO:
+            self.cmp_val = SETUP_BOUND_COMP_ZERO * int(np.sign(self.cmp_val))
+
+    def _traverse(self, f, combo):
+        self_val = f(self)
+        true_val = self.if_true_child._traverse(f, combo)
+        false_val = self.if_false_child._traverse(f, combo)
+        return combo(self_val, true_val, false_val)
+
+
+# traverse a tree to collect the features in the tree
+def get_features(t):
+    def combo(set1, set2, set3):
+        s = set()
+        s = s.union(set1)
+        s = s.union(set2)
+        s = s.union(set3)
+        return s
+    return t._traverse(lambda t1: t1._get_features(), combo)
+
+# traverse a tree to collect the extreme values in the tree
+def get_extreme_values(t):
+    def combo(minmax1, minmax2, minmax3):
+        min1, max1 = minmax1
+        min2, max2 = minmax2
+        min3, max3 = minmax3
+        return min(min1, min2, min3), max(max1, max2, max3)
+    return t._traverse(lambda t1: t1._get_extreme_values(), combo)
+
+# traverse a tree to discretize each node
+def discretize(t):
+    def combo(x, y, z):
+        return None
+    return t._traverse(lambda t1: t1._discretize(), combo)
 
 
 # Create a string representation of the tree. This should be the same as the xgboost model dump for the tree.
@@ -175,6 +221,8 @@ def parse_subtree(s, lvl):
             # I'm also unsure why we're applying the precision change to both
             # OPE- and Paillier-encrypted values; there doesn't seem to be any reason to use
             # the same precision for both schemes.
+            # Finally, I don't understand why we discretize when we find \eps, but not,
+            # e.g., 1+\eps.
             #
             #
             # As Client's query is unpredictible, it's impossible
@@ -189,6 +237,7 @@ def parse_subtree(s, lvl):
             # As a result, the current methodology cannot support more than 7 digits of
             # floating number precision.
             if abs(value) <= PRECISION_BOUND_COMP_ZERO:
+                print("LEAF DISCRETIZATION")
                 value = SETUP_BOUND_COMP_ZERO * int(np.sign(value))
             return Leaf(int(leaf_strs[0]), value)
 
@@ -239,6 +288,7 @@ def parse_subtree(s, lvl):
 
         # Similar to above (precision issue)
         if abs(node_value) <= PRECISION_BOUND_COMP_ZERO:
+            print("NODE DISCRETIZATION")
             node_value = SETUP_BOUND_COMP_ZERO * int(np.sign(node_value))
     else:
         node_value = int(leaf_strs[2])
