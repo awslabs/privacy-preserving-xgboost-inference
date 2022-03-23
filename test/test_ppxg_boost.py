@@ -11,6 +11,7 @@ import pandas as pd
 import random
 
 from secrets import token_bytes
+from ppxgboost import Model as internalmodel
 from ppxgboost import BoosterParser as boostparser
 from ppxgboost import PPBooster as ppbooster
 from ope.pyope.ope import OPE, ValueRange
@@ -33,7 +34,7 @@ class Test_PPMParser:
         dump_tree = testing_model.get_dump()
 
         # use boostparser to convert the model (in strings) to tree objects.
-        model = boostparser.model_to_trees(testing_model)
+        model = internalmodel.from_xgboost_model(testing_model)
 
         # for each one of trees, test if the parsed tree is the same as the tree object (calling print in tree object)
         for i in range(len(model.trees)):
