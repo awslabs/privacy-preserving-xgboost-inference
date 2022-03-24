@@ -5,6 +5,9 @@
 import re
 import numpy as np
 import pandas as pd
+from ppxgboost.PPKey import *
+from ppxgboost.OPEMetadata import *
+from ppxgboost.PPBooster import *
 
 # The precision bound we cannot tolerate (beyond this we cannot handle it)
 PRECISION_BOUND_COMP_ZERO = 1.0e-8
@@ -70,6 +73,11 @@ class Leaf(TreeNode):
     def discretize(self):
         if abs(self.value) <= PRECISION_BOUND_COMP_ZERO:
             self.value = SETUP_BOUND_COMP_ZERO * int(np.sign(self.value))
+
+    def encrypt(self, pp_boost_key: PPBoostKey, metadata: Metadata):
+        encrypted_value = paillier.encrypt(pp_boost_key.get_public_key(), self.value)
+        return Leaf(self.id, encrypted_value)
+
 
 # An interior node in the tree data structure.
 class Interior(TreeNode):
@@ -142,6 +150,28 @@ class Interior(TreeNode):
             self.cmp_val = SETUP_BOUND_COMP_ZERO * int(np.sign(self.cmp_val))
         self.if_true_child.discretize()
         self.if_false_child.discretize()
+
+    def encrypt(self, pp_boost_key: PPBoostKey, metadata: Metadata):
+        num = metadata.affine_transform(self.cmp_val)
+        if num > MAX_NUM_OPE_ENC or num < 0:
+            raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+                            "), system cannot encrypt", num)
+        encrypted_val = pp_boost_key.get_ope_encryptor().encrypt(num)
+
+        # TODO: we end up recomputing HMACs many times, which may be slowing encryption down. Cache?
+        # print("TreeEnc: HMAC of " + self.feature_name + " is " + hmac_code)
+        encrypted_feature = hmac_msg(pp_boost_key.get_prf_key(), self.feature_name)
+
+        encrypted_true_subtree = self.if_true_child.encrypt(pp_boost_key, metadata)
+        encrypted_false_subtree = self.if_false_child.encrypt(pp_boost_key, metadata)
+
+        if self.if_true_child == self.default_child:
+            encrypted_default_subtree = encrypted_true_subtree
+        else:
+            encrypted_default_subtree = encrypted_false_subtree
+
+        return Interior(self.id, encrypted_feature, encrypted_val, encrypted_true_subtree, encrypted_false_subtree, encrypted_default_subtree)
+
 
 # Create a string representation of the tree. This should be the same as the xgboost model dump for the tree.
 def tree_to_string(t: TreeNode):

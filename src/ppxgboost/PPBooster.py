@@ -11,47 +11,16 @@ import math
 
 import numpy as np
 
-import ppxgboost.BoosterParser as bs
+from ppxgboost.OPEMetadata import *
 import ppxgboost.PaillierAPI as paillier
+from ppxgboost.Model import *
+from ppxgboost.Tree import *
 
 # multiplicative factor for encoding the message when using OPE
 from ope.pyope.ope import DEFAULT_IN_RANGE_END
 from ppxgboost.PPKey import PPBoostKey
 
 import encodings
-
-# This is the maximum number that the OPE encryption can support.
-#   Currently, we also set this to be the maximum number that
-#   affine transform map to (see line 54).
-MAX_NUM_OPE_ENC = DEFAULT_IN_RANGE_END
-
-
-class MetaData:
-    """
-    This is a metadata structure before encryption. It contains the minimum and maximum value
-    from the training dataset as well as the model file
-    """
-
-    def __init__(self, min_max: dict):
-        self.mini = min_max['min']
-        self.maxi = min_max['max']
-
-    def set_min(self, new_min):
-        self.mini = new_min
-
-    def set_max(self, new_max):
-        self.maxi = new_max
-
-    def affine_transform(self, x):
-        """
-        This affine transformation will linearly rescale [min, max] to [0, MAX_NUM_AFFINE].
-        Linear rescaling:  (x - n_min) * MAX_NUM_AFFINE / (n_max - n_min)
-                           MAX_NUM_AFFINE / (n_max - n_min) x - MAX_NUM_AFFINE * n_min
-        :param x: input number
-        :return: mapping numerical value
-        """
-        return int((x - self.mini) * MAX_NUM_OPE_ENC / (self.maxi - self.mini))
-
 
 def sigmoid(number):
     """
@@ -104,59 +73,60 @@ def hmac_feature(prf_hash_key, input_vector):
     return input_vector
 
 
-# This method recursively encrypts the tree_node comparison value using OPE scheme
-# It also uses the PRF to 'pseudo-randomize' the feature name as well
-# It then encrypts the leaf value using he_pub_key (he public key).
-def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
-    """
-    Process the node
-    :param metaData:
-    :param he_pub_key: the homomorphic key
-    :param prf_hash_key: hash key for hmac
-    :param ope: ope object for encrypting the comparison value
-    :param tree_node: the Interier object (node) in the decision tree.
-    :return: ope encrypted tree
-    """
-    # If it is not leaf, then encode the comp_val using OPE.
-    if not isinstance(tree_node, bs.Leaf):
+# # This method recursively encrypts the tree_node comparison value using OPE scheme
+# # It also uses the PRF to 'pseudo-randomize' the feature name as well
+# # It then encrypts the leaf value using he_pub_key (he public key).
+# def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metadata):
+#     """
+#     Process the node
+#     :param metadata:
+#     :param he_pub_key: the homomorphic key
+#     :param prf_hash_key: hash key for hmac
+#     :param ope: ope object for encrypting the comparison value
+#     :param tree_node: the Interier object (node) in the decision tree.
+#     :return: ope encrypted tree
+#     """
+#     # If it is not leaf, then encode the comp_val using OPE.
+#     if not isinstance(tree_node, Leaf):
 
-        num = metaData.affine_transform(tree_node.cmp_val)
+#         num = metadata.affine_transform(tree_node.cmp_val)
 
-        if num > MAX_NUM_OPE_ENC or num < 0:
-            raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
-                            "), system cannot encrypt", num)
+#         if num > MAX_NUM_OPE_ENC or num < 0:
+#             raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+#                             "), system cannot encrypt", num)
 
-        tree_node.cmp_val = ope.encrypt(num)
+#         tree_node.cmp_val = ope.encrypt(num)
 
-        hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
-        # TODO: we end up recomputing HMACs many times, which may be slowing encryption down. Cache?
-        # print("TreeEnc: HMAC of " + tree_node.feature_name + " is " + hmac_code)
-        tree_node.feature_name = hmac_code
+#         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
+#         # TODO: we end up recomputing HMACs many times, which may be slowing encryption down. Cache?
+#         # print("TreeEnc: HMAC of " + tree_node.feature_name + " is " + hmac_code)
+#         tree_node.feature_name = hmac_code
 
-        # Recurse to the if true tree_node
-        enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_true_child, metaData)
-        # Recurse to the if false tree_node
-        enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_false_child, metaData)
-    # else it is the bs.Leaf
-    else:
-        # Value....
-        tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
+#         # Recurse to the if true tree_node
+#         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_true_child, metadata)
+#         # Recurse to the if false tree_node
+#         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_false_child, metadata)
+#     # else it is the Leaf
+#     else:
+#         # Value....
+#         tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
 
 
-def enc_xgboost_model(ppBoostKey: PPBoostKey, trees: list, metaData):
-    """
-    Encrypts the model (trees) to an encrypted format.
-    :param ppBoostKey: the pp boost key wrapper.
-    :param metaData: metaData containing min, max information
-    :param trees: the model as an input (a list of trees)
-    """
-    he_pub_key = ppBoostKey.get_public_key()
-    prf_hash_key = ppBoostKey.get_prf_key()
-    ope = ppBoostKey.get_ope_encryptor()
+# def enc_xgboost_model(ppBoostKey: PPBoostKey, model: XGBoostModel, metadata: Metadata):
+#     """
+#     Encrypts the model to an encrypted format.
+#     :param ppBoostKey: the pp boost key wrapper.
+#     :param metadata: metadata containing min, max information
+#     :param trees: the model as an input (a list of trees)
+#     """
+#     trees = model.trees
+#     he_pub_key = ppBoostKey.get_public_key()
+#     prf_hash_key = ppBoostKey.get_prf_key()
+#     ope = ppBoostKey.get_ope_encryptor()
 
-    for t in trees:
-        enc_tree_node(he_pub_key, prf_hash_key, ope, t, metaData)
-    return trees
+#     for t in trees:
+#         enc_tree_node(he_pub_key, prf_hash_key, ope, t, metadata)
+#     return trees
 
 
 def predict_single_input_binary(trees, vector, default_base_score=0.5):
@@ -289,7 +259,7 @@ def client_decrypt_prediction_multiclass(private_key, predictions):
 
 
 # encrypts the input vector
-def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
+def enc_input_vector(client_key: ClientKey, feature_set, input_vector, metadata):
     """
     Process the feature's name using hmac, then encrypts the neccessary values using OPE
     based on the feature set.
@@ -300,6 +270,9 @@ def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
     :param input_vector: input vector
     """
     # starts to encrypt using ope based on the feature set.
+
+    hash_key = client_key.get_prf_key()
+    ope = client_key.get_ope_encryptor()
 
     feature_list = list(feature_set)
     enc_feature_list = list()

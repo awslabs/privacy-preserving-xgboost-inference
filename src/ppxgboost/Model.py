@@ -2,16 +2,13 @@
 # An XGBoost model is a collection of TreeNodes
 
 import ppxgboost.Tree as Tree
+from ppxgboost.PPKey import *
+from ppxgboost.OPEMetadata import *
 
 class XGBoostModel:
 
     def __init__(self, trees):
         self.trees = list(trees)
-
-    # this probably isn't the right API, but it works for now
-    def update_extreme_values(self, min_max):
-        forest_min, forest_max = self.get_extreme_values()
-        return {'min': min(min_max['min'], forest_min), 'max': max(min_max['max'], forest_max)}
 
     def get_features(self):
         features = set()
@@ -31,6 +28,13 @@ class XGBoostModel:
     def discretize(self):
         for t in self.trees:
             t.discretize()
+
+    def encrypt(self, pp_boost_key: PPBoostKey, metadata: Metadata):
+        """ Return a new XGBoostModel corresponding to the encryption of
+            self under pp_boost_key
+        """
+        return XGBoostModel(map(lambda t: t.encrypt(pp_boost_key, metadata), self.trees))
+
 
 # Converts an xgboost model to an internal representation of the model.
 # Returns the internal representation of the model

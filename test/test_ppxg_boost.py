@@ -10,13 +10,12 @@ import pickle as pl
 import pandas as pd
 import random
 
-from secrets import token_bytes
 from ppxgboost import Model as internalmodel
-from ppxgboost import BoosterParser as boostparser
+from ppxgboost import OPEMetadata as metadata
 from ppxgboost import PPBooster as ppbooster
 from ope.pyope.ope import OPE, ValueRange
 from ppxgboost import PaillierAPI as paillier
-from ppxgboost.PPBooster import MetaData
+from ppxgboost.OPEMetadata import Metadata
 from ppxgboost.Tree import *
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
@@ -33,12 +32,12 @@ class Test_PPMParser:
         # dump_tree is a list of strings, where each string is tree representation. See the docs in xgBoost for details.
         dump_tree = testing_model.get_dump()
 
-        # use boostparser to convert the model (in strings) to tree objects.
+        # use metadata to convert the model (in strings) to tree objects.
         model = internalmodel.from_xgboost_model(testing_model)
 
         # for each one of trees, test if the parsed tree is the same as the tree object (calling print in tree object)
         for i in range(len(model.trees)):
-            assert dump_tree[i] == boostparser.tree_to_string(model.trees[i])
+            assert dump_tree[i] == tree_to_string(model.trees[i])
 
     def test_ope_node(self):
         """
@@ -56,7 +55,7 @@ class Test_PPMParser:
         # The following is to compute the scores for the decision tree on input vectors in plaintext
         ################################################################################################
 
-        tree = boostparser.parse_tree(t1)
+        tree = parse_tree(t1)
 
         # The score list value in plaintext.
         score_value = list()
@@ -69,31 +68,22 @@ class Test_PPMParser:
         ################################################################################################
 
         # Set up encrytion materials.
-        # token bytes calls the os.urandom().
-        prf_key = token_bytes(16)
-        OPE_key = token_bytes(16)
-        encrypter = OPE(OPE_key)
+        encryption_key, client_key = generatePPXGBoostKeys()
 
         # create a copy of the input vector and plaintext trees
         test_input_vector = input_vector.copy()
-        enc_tree = tree
         feature_set = tree.get_features()
         print("Feature set: " + str(list(feature_set)))
 
-        public_key, private_key = paillier.he_key_gen()
-
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.
-        metaDataMinMax = MetaData({'min': 0, 'max': 1000})
+        metaDataMinMax = Metadata({'min': 0, 'max': 1000})
 
         # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
-        ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)
+        ppbooster.enc_input_vector(client_key, feature_set, test_input_vector, metaDataMinMax)
 
         # 2. process the tree into ope_enc_tree
-        print("Encrypted feature set: " + str(list(enc_tree.get_features())))
-        ppbooster.enc_tree_node(public_key, prf_key, encrypter, enc_tree, metaDataMinMax)
-        print("Encrypted feature set: " + str(list(enc_tree.get_features())))
-
+        enc_tree = tree.encrypt(encryption_key, metaDataMinMax)
 
         # 3. OPE evaluation based on OPE encrypted values in the tree nodes.
         encrypted_value = list()
@@ -103,7 +93,7 @@ class Test_PPMParser:
 
         dec_value = list()
         for c in encrypted_value:
-            dec_value.append(paillier.decrypt(private_key, c))
+            dec_value.append(paillier.decrypt(client_key.get_private_key(), c))
 
         # 4. compare
         assert dec_value == score_value

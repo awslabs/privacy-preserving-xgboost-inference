@@ -4,6 +4,8 @@
 from phe import PaillierPrivateKey, PaillierPublicKey
 
 from ope.pyope.ope import OPE
+from secrets import token_bytes
+import ppxgboost.PaillierAPI as paillier
 
 
 class PPBoostKey:
@@ -39,6 +41,12 @@ class PPBoostKey:
         """
         return self.__ope_encryptor
 
+def generatePPXGBoostKeys():
+    # token bytes calls the os.urandom().
+    prf_key = token_bytes(16)
+    paillier_public_key, paillier_private_key = paillier.he_key_gen()
+    ope_encryptor = OPE(token_bytes(16))
+    return PPBoostKey(paillier_public_key, prf_key, ope_encryptor), ClientKey(paillier_private_key, prf_key, ope_encryptor)
 
 class ClientKey:
     """
