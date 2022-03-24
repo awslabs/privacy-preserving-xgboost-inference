@@ -74,21 +74,26 @@ class Test_PPMParser:
         test_input_vector = input_vector.copy()
         feature_set = tree.get_features()
         print("Feature set: " + str(list(feature_set)))
+        X_test = input_vector[list(feature_set)]
 
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.
-        metaDataMinMax = Metadata({'min': 0, 'max': 1000})
+        metaDataMinMax = Metadata(tree, X_test)
 
         # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
-        ppbooster.enc_input_vector(client_key, feature_set, test_input_vector, metaDataMinMax)
+        test_queries = pandas_to_queries(test_input_vector)
+        q_encryptor = QueryEncryptor(client_key, feature_set, metaDataMinMax)
+        encrypted_queries = map(q_encryptor.encrypt_query, test_queries)
 
         # 2. process the tree into ope_enc_tree
         enc_tree = tree.encrypt(encryption_key, metaDataMinMax)
 
         # 3. OPE evaluation based on OPE encrypted values in the tree nodes.
         encrypted_value = list()
-        for index, row in test_input_vector.iterrows():
-            score = enc_tree.eval(row)
+        for q in encrypted_queries:
+            if q is None:
+                raise Exception('NONE IN TEST')
+            score = enc_tree.eval(q)
             encrypted_value.append(score)
 
         dec_value = list()

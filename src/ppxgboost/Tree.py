@@ -34,9 +34,7 @@ class Leaf(TreeNode):
         self.value = value
 
     # ignore input, this is a leaf
-    def eval(self, x: pd.Series):
-        if x is None:
-            raise Exception("Invalid input string.")
+    def eval(self, x):
         return self.value
 
     # Serialize this leaf as a string at level `lvl`. Note that this
@@ -101,9 +99,11 @@ class Interior(TreeNode):
         self.default_child = default_child
 
     # the evaluation of the tree.
-    def eval(self, x: pd.Series):
+    def eval(self, x):
+        if x is None:
+            raise RuntimeError("None in eval")
         if self.feature_name not in x:
-            print('Feature name is ' + self.feature_name)
+            print('Feature name ' + self.feature_name + ' is not available in query')
             print(x)
             raise RuntimeError("Feature name not available in eval")
 

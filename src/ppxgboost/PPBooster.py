@@ -22,25 +22,6 @@ from ppxgboost.PPKey import PPBoostKey
 
 import encodings
 
-def sigmoid(number):
-    """
-    Return the logistic function of a number
-    :param number: input
-    :return: 1/ (1 + e^-x)
-    """
-    return 1 / (1 + np.exp(-number))
-
-
-def random_string(string_length=16):
-    """
-    generate random strings
-    :param string_length: 
-    :return: random strings
-    """
-    letters = string.ascii_letters
-    return ''.join(random.choice(letters) for i in range(string_length))
-
-
 # hmac the msg using utf-8 encoding (python3)
 # we use hmac as a PRF to create 'pseudonyms' for the features.
 # A reference that shows hmac is a PRF (see Theorem 1 in https://eprint.iacr.org/2014/578.pdf)
@@ -56,80 +37,57 @@ def hmac_msg(prf_key_hash, feature):
     sig = base64.b64encode(hmac.new(prf_key_hash, message, hashlib.sha256).digest())
     return sig.decode()
 
+class QueryEncryptor:
 
-# hmac the features for the testing vector
-def hmac_feature(prf_hash_key, input_vector):
+    def __init__(self, client_key: ClientKey, feature_set, metadata: Metadata):
+        self.key = client_key
+        self.feature_set = feature_set
+        self.metadata = metadata
+        self.feature_name_map = {}
+        for f in self.feature_set:
+            self.feature_name_map[f] = hmac_msg(self.key.get_prf_key(), f)
+
+    def encrypt_query(self, query_dict):
+        encrypted_query = {}
+        for k, v in query_dict.items():
+            if k not in self.feature_set:
+                continue
+
+            # TODO: datasets in the tests *do* contain NaN
+            # but this leaks where NaNs are...
+            if math.isnan(v):
+                encrypted_val = v
+            else:
+                normalized_val = self.metadata.affine_transform(v)
+
+                if normalized_val > MAX_NUM_OPE_ENC or normalized_val < 0:
+                    raise Exception("Invalid input: input is out of range (0, " + str(MAX_NUM_OPE_ENC) +
+                                    "). The system cannot encrypt", normalized_val)
+                encrypted_val = self.key.get_ope_encryptor().encrypt(int(normalized_val))
+            encrypted_query[self.feature_name_map[k]] = encrypted_val
+        return encrypted_query
+
+def pandas_to_queries(data_set):
     """
-    hmac vector's column name
-    :param prf_hash_key: hash key
-    :param input_vector: the vector (as dataframe)
-    :return:
+    Process the feature's name using hmac, then encrypts the neccessary values using OPE
+    based on the feature set.
+    :param metadata: encryption metadata containing min, max and affine transform
+    :param hash_key: hmac hash key
+    :param ope: ope object
+    :param feature_set: feature set
+    :param input_vector: input vector
     """
-    new_header = list()
-    for col in input_vector.columns:
-        new_header.append(hmac_msg(prf_hash_key, col))
-    # Reassign the column names to the input vector
-    input_vector.columns = new_header
-    return input_vector
+    # starts to encrypt using ope based on the feature set.
 
+    queries = []
+    for i, row in data_set.iterrows():
+        query = {}
+        for feature in list(data_set.columns.values):
+            query[feature] = row[feature]
+        queries.append(query)
+    return queries
 
-# # This method recursively encrypts the tree_node comparison value using OPE scheme
-# # It also uses the PRF to 'pseudo-randomize' the feature name as well
-# # It then encrypts the leaf value using he_pub_key (he public key).
-# def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metadata):
-#     """
-#     Process the node
-#     :param metadata:
-#     :param he_pub_key: the homomorphic key
-#     :param prf_hash_key: hash key for hmac
-#     :param ope: ope object for encrypting the comparison value
-#     :param tree_node: the Interier object (node) in the decision tree.
-#     :return: ope encrypted tree
-#     """
-#     # If it is not leaf, then encode the comp_val using OPE.
-#     if not isinstance(tree_node, Leaf):
-
-#         num = metadata.affine_transform(tree_node.cmp_val)
-
-#         if num > MAX_NUM_OPE_ENC or num < 0:
-#             raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
-#                             "), system cannot encrypt", num)
-
-#         tree_node.cmp_val = ope.encrypt(num)
-
-#         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
-#         # TODO: we end up recomputing HMACs many times, which may be slowing encryption down. Cache?
-#         # print("TreeEnc: HMAC of " + tree_node.feature_name + " is " + hmac_code)
-#         tree_node.feature_name = hmac_code
-
-#         # Recurse to the if true tree_node
-#         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_true_child, metadata)
-#         # Recurse to the if false tree_node
-#         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_false_child, metadata)
-#     # else it is the Leaf
-#     else:
-#         # Value....
-#         tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
-
-
-# def enc_xgboost_model(ppBoostKey: PPBoostKey, model: XGBoostModel, metadata: Metadata):
-#     """
-#     Encrypts the model to an encrypted format.
-#     :param ppBoostKey: the pp boost key wrapper.
-#     :param metadata: metadata containing min, max information
-#     :param trees: the model as an input (a list of trees)
-#     """
-#     trees = model.trees
-#     he_pub_key = ppBoostKey.get_public_key()
-#     prf_hash_key = ppBoostKey.get_prf_key()
-#     ope = ppBoostKey.get_ope_encryptor()
-
-#     for t in trees:
-#         enc_tree_node(he_pub_key, prf_hash_key, ope, t, metadata)
-#     return trees
-
-
-def predict_single_input_binary(trees, vector, default_base_score=0.5):
+def predict_single_input_binary(model, query, default_base_score=0.5):
     """
     return a prediction on a single vector.
     :param trees: a list of trees (model represenation)
@@ -137,70 +95,35 @@ def predict_single_input_binary(trees, vector, default_base_score=0.5):
     :param default_base_score: a default score is 0.5 (global bias)
     :return: the predicted score
     """
-    predict_sum_score = default_base_score
-    for t in trees:
-        score = t.eval(vector)
-        predict_sum_score += score
-    return predict_sum_score
+    scores = model.eval(query)
+    return default_base_score + sum(scores)
 
 
-def predict_binary(trees, vector, default_base_score=0.5):
-    """
-    Prediction on @vector over the @trees
-    :param default_base_score: default score is 0.5 (according to the xgboost -- global bias)
-    :param trees: list of trees
-    :param vector: a list of input vectors
-    :return: the prediction values (summation of the values from all the leafs)
-    """
-    result = []
-    for index, row in vector.iterrows():
-        # compute the score for all of the input vectors
-        result.append(predict_single_input_binary(trees, row))
-    # returns result as np array
-    return np.array(result)
-
-
-def predict_single_input_multiclass(trees, num_classes, vector):
+def predict_single_input_multiclass(model, num_classes, query):
     """
     return a prediction on a single input vector.
     The algorithm computes the sum of scores for all the corresponding classes (boosters in the xgboost model).
     For each class, it sum up all the leaves' values
-    :param trees: a list of trees (model representation)
+    :param model: internal model representation
     :param num_classes: the total number classes to classify
-    :param vector: a single input vector
+    :param query: a single input query
     :return: the predicted score
     """
-    num_trees = len(trees)
+    scores = model.eval(query)
 
     # sum of score for each category: exp(score)
     result = []
     for i in range(num_classes):
         result.append(0)
 
-    # this is to compute the softmax, however, server can only perform additvely homo operation,
-    # so here we can compute scores seperately
-    for i in range(num_trees):
-        score = trees[i].eval(vector)
+    # this is to compute the softmax, however, server can only perform
+    # additvely homomorphic operation, so here we can compute scores
+    # seperately
+    for i in range(len(scores)):
+        j = i % num_classes
+        result[j] = result[j] + scores[i]
 
-        result[i % num_classes] += score
-    # return the result as a list (contains all of the scores for each labels).
     return result
-
-
-def predict_multiclass(trees, num_classes, input_data_df):
-    """
-    This prediction for dataframe input. For each record,
-    it calls the 'predict_single_input_multiclass'
-    :param trees: models
-    :param num_classes: number of the labels
-    :param input_data_df: input dataframe
-    :return: prediction with aggregated scores
-    """
-    predicts = []
-    for index, row in input_data_df.iterrows():
-        vect_results = predict_single_input_multiclass(trees, num_classes, row)
-        predicts.append(vect_results)
-    return predicts
 
 
 def client_side_multiclass_compute(predictions):
@@ -258,49 +181,123 @@ def client_decrypt_prediction_multiclass(private_key, predictions):
     return np.array(result)
 
 
-# encrypts the input vector
-def enc_input_vector(client_key: ClientKey, feature_set, input_vector, metadata):
-    """
-    Process the feature's name using hmac, then encrypts the neccessary values using OPE
-    based on the feature set.
-    :param metadata: encryption metadata containing min, max and affine transform
-    :param hash_key: hmac hash key
-    :param ope: ope object
-    :param feature_set: feature set
-    :param input_vector: input vector
-    """
-    # starts to encrypt using ope based on the feature set.
 
-    hash_key = client_key.get_prf_key()
-    ope = client_key.get_ope_encryptor()
 
-    feature_list = list(feature_set)
-    enc_feature_list = list()
 
-    # Process feature list first.
-    for i in feature_list:
-        enc_feature_list.append(hmac_msg(hash_key, i))
+# # encrypts the input vector
+# def enc_input_vector(client_key: ClientKey, feature_set, input_vector, metadata):
+#     """
+#     Process the feature's name using hmac, then encrypts the neccessary values using OPE
+#     based on the feature set.
+#     :param metadata: encryption metadata containing min, max and affine transform
+#     :param hash_key: hmac hash key
+#     :param ope: ope object
+#     :param feature_set: feature set
+#     :param input_vector: input vector
+#     """
+#     # starts to encrypt using ope based on the feature set.
 
-    # calls the hmac_feature method to hmac the feature name of the input vector.
-    hmac_feature(hash_key, input_vector)
+#     hash_key = client_key.get_prf_key()
+#     ope = client_key.get_ope_encryptor()
 
-    # Dropping the columns not in the feature list
-    for col in input_vector.columns:
-        if col not in enc_feature_list:
-            input_vector.drop(col, axis=1, inplace=True)
+#     feature_list = list(feature_set)
 
-    for i, row in input_vector.iterrows():
-        # Encrypts all the features in the input_vector
-        for feature in list(input_vector.columns.values):
-            if not math.isnan(row[feature]):
+#     # Drop columns not in the feature list (i.e., columns not used by the model)
+#     for col in input_vector.columns:
+#         if col not in feature_list:
+#             input_vector.drop(col, axis=1, inplace=True)
 
-                noramlized_feature = metadata.affine_transform(row[feature])
+#     # calls the hmac_feature method to hmac the feature name of the input vector.
+#     hmac_feature(hash_key, input_vector)
 
-                if noramlized_feature > MAX_NUM_OPE_ENC or noramlized_feature < 0:
-                    raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
-                                    "). The system cannot encrypt",
-                                    noramlized_feature)
+#     for i, row in input_vector.iterrows():
+#         # Encrypts all the features in the input_vector
+#         for feature in list(input_vector.columns.values):
 
-                ope_value = ope.encrypt(int(noramlized_feature))
+#             # TODO: datasets in the tests *do* contain NaN
+#             # but this leaks where NaNs are...
+#             if math.isnan(row[feature]):
+#             #     raise Exception("Found NaN in input vector")
+#                 continue
 
-                input_vector.at[i, feature] = ope_value
+#             noramlized_feature = metadata.affine_transform(row[feature])
+
+#             if noramlized_feature > MAX_NUM_OPE_ENC or noramlized_feature < 0:
+#                 raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+#                                 "). The system cannot encrypt", noramlized_feature)
+
+#             ope_value = ope.encrypt(int(noramlized_feature))
+
+#             input_vector.at[i, feature] = ope_value
+
+# hmac the features for the testing vector
+# def hmac_feature(prf_hash_key, input_vector):
+#     """
+#     hmac vector's column name
+#     :param prf_hash_key: hash key
+#     :param input_vector: the vector (as dataframe)
+#     :return:
+#     """
+#     new_header = list()
+#     for col in input_vector.columns:
+#         new_header.append(hmac_msg(prf_hash_key, col))
+#     # Reassign the column names to the input vector
+#     input_vector.columns = new_header
+#     return input_vector
+
+
+# # This method recursively encrypts the tree_node comparison value using OPE scheme
+# # It also uses the PRF to 'pseudo-randomize' the feature name as well
+# # It then encrypts the leaf value using he_pub_key (he public key).
+# def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metadata):
+#     """
+#     Process the node
+#     :param metadata:
+#     :param he_pub_key: the homomorphic key
+#     :param prf_hash_key: hash key for hmac
+#     :param ope: ope object for encrypting the comparison value
+#     :param tree_node: the Interier object (node) in the decision tree.
+#     :return: ope encrypted tree
+#     """
+#     # If it is not leaf, then encode the comp_val using OPE.
+#     if not isinstance(tree_node, Leaf):
+
+#         num = metadata.affine_transform(tree_node.cmp_val)
+
+#         if num > MAX_NUM_OPE_ENC or num < 0:
+#             raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+#                             "), system cannot encrypt", num)
+
+#         tree_node.cmp_val = ope.encrypt(num)
+
+#         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
+#         # TODO: we end up recomputing HMACs many times, which may be slowing encryption down. Cache?
+#         # print("TreeEnc: HMAC of " + tree_node.feature_name + " is " + hmac_code)
+#         tree_node.feature_name = hmac_code
+
+#         # Recurse to the if true tree_node
+#         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_true_child, metadata)
+#         # Recurse to the if false tree_node
+#         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_false_child, metadata)
+#     # else it is the Leaf
+#     else:
+#         # Value....
+#         tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
+
+
+# def enc_xgboost_model(ppBoostKey: PPBoostKey, model: XGBoostModel, metadata: Metadata):
+#     """
+#     Encrypts the model to an encrypted format.
+#     :param ppBoostKey: the pp boost key wrapper.
+#     :param metadata: metadata containing min, max information
+#     :param trees: the model as an input (a list of trees)
+#     """
+#     trees = model.trees
+#     he_pub_key = ppBoostKey.get_public_key()
+#     prf_hash_key = ppBoostKey.get_prf_key()
+#     ope = ppBoostKey.get_ope_encryptor()
+
+#     for t in trees:
+#         enc_tree_node(he_pub_key, prf_hash_key, ope, t, metadata)
+#     return trees
+

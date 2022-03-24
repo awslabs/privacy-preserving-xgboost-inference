@@ -5,37 +5,27 @@ from ppxgboost.Tree import *
 from ppxgboost.Model import *
 from ope.pyope.ope import DEFAULT_IN_RANGE_END
 
-# This is the maximum number that the OPE encryption can support.
-#   Currently, we also set this to be the maximum number that
-#   affine transform map to (see `affine_transform`).
+# This is the maximum value that the OPE encryption can support.
+# `affine_transform` uses this value as the upper bound for the
+# OPE range.
 MAX_NUM_OPE_ENC = DEFAULT_IN_RANGE_END
 
 class Metadata:
     """
-    This is a metadata structure before encryption. It contains the minimum and maximum value
-    from the training dataset as well as the model file
+    OPE encryption takes floating point values in a fixed range and
+    maps them to an integer range. This metadata defines the input
+    range for this OPE instance.
 
-    # Although it would be nice if the model encryption was context-free, the OPE
-    # scheme needs to be aware of the min and max values it will need to encrypt.
-    # This function returns the min and max values over the test data set to use
+    Although it would be nice if the model encryption was context-free,
+    evaluating a model requires comparing values in an (unknown at encryption time)
+    query to values in the model itself. Thus the input range for the OPE
+    instance depends on the comparison values in the model itself as well
+    as the minimum and maximum values in any query, across all features.
     """
-    def __init__(self, model, test_data):
-        test_data_min = np.min(pd.DataFrame.min(test_data))
-        test_data_max = np.max(pd.DataFrame.max(test_data))
+    def __init__(self, model, test_data_min, test_data_max):
         model_min, model_max = model.get_extreme_values()
-        self.mini = min(test_data_min, model_min)
-        self.maxi = max(test_data_max, model_max)
-
-    # TODO: get rid of this constructor. Currently only used for tests
-    # def __init__(self, min_max: dict):
-    #     self.mini = min_max['min']
-    #     self.maxi = min_max['max']
-
-    def set_min(self, new_min):
-        self.mini = new_min
-
-    def set_max(self, new_max):
-        self.maxi = new_max
+        self.min_val = min(test_data_min, model_min)
+        self.max_val = max(test_data_max, model_max)
 
     def affine_transform(self, x):
         """
@@ -45,4 +35,20 @@ class Metadata:
         :param x: input number
         :return: mapping numerical value
         """
-        return int((x - self.mini) * MAX_NUM_OPE_ENC / (self.maxi - self.mini))
+        return int((x - self.min_val) * MAX_NUM_OPE_ENC / (self.max_val - self.min_val))
+
+# For tests and examples, the entire test dataset is known in advance
+# so we can just extract the minimum and maximum values from the dataset
+# rather than guessing.
+def test_data_extreme_values(test_data):
+
+    data_min = float('inf')
+    data_max = float('-inf')
+    for x in test_data:
+        values = x.values()
+        q_min = min(values)
+        q_max = max(values)
+        data_min = min(q_min, data_min)
+        data_max = max(q_max, data_max)
+
+    return data_min, data_max

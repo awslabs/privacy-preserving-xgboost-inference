@@ -10,6 +10,9 @@ class XGBoostModel:
     def __init__(self, trees):
         self.trees = list(trees)
 
+    def eval(self, x):
+        return map(lambda t: t.eval(x), self.trees)
+
     def get_features(self):
         features = set()
         for t in self.trees:
