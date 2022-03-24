@@ -5,7 +5,7 @@ import ppxgboost.Tree as Tree
 from ppxgboost.PPKey import *
 from ppxgboost.OPEMetadata import *
 
-class XGBoostModel:
+class PPModel:
 
     def __init__(self, trees):
         self.trees = list(trees)
