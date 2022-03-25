@@ -178,6 +178,23 @@ def tree_to_string(t: TreeNode):
     return t.node_to_string(0)
 
 
+
+
+# getting the dump of the tree.
+# list of string (representing trees)
+# the get_dump() returns a list strings, each tree is represented in a particular format
+# (seperated by \n or \t's.
+#  For example: one of the tree' string representation is below:
+#  '0:[XXX<3] yes=1,no=2,missing=1\n\t1:[Fare<13.6458502] yes=3,no=4,missing=3\n\t\t
+#  3:leaf=-0.00585523667\n\t\t4:leaf=0.0201724116\n\t2:leaf=-0.0114313215\n
+# -->
+# represents the following tree structure.
+# 0:[XXX<3] yes=1,no=2,missing=1
+#   1:[xyz<13.6458502] yes=3,no=4,missing=3
+#       3:leaf=-0.00585523667
+#       4:leaf=0.0201724116
+#   2:leaf=-0.0114313215
+
 # Create a PPXGBoost model from a string serialization. PPXGBoost requires
 # granular access to model parameters, but the xgboost library doesn't
 # provide this level of visibility directly. Instead, we designed
