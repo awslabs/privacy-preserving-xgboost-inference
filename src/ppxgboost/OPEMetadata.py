@@ -1,13 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from ppxgboost.PPModel import PPModel
 from ope.pyope.ope import DEFAULT_IN_RANGE_END
 
 # This is the maximum value that the OPE encryption can support.
 # `affine_transform` uses this value as the upper bound for the
 # OPE range.
 MAX_NUM_OPE_ENC = DEFAULT_IN_RANGE_END
+
 
 class OPEMetadata:
     """
@@ -22,7 +22,7 @@ class OPEMetadata:
     as the minimum and maximum values in any query, across all features.
     """
 
-    def __init__(self, model: PPModel, test_data_min, test_data_max):
+    def __init__(self, model, test_data_min, test_data_max):
         """
         :param model: plaintext PPXGBoost model
         :param test_data_min: minimum value across all features of all (future) queries
@@ -43,7 +43,9 @@ class OPEMetadata:
         return int((x - self.min_val) * MAX_NUM_OPE_ENC / (self.max_val - self.min_val))
 
 
-def test_data_extreme_values(test_data):
+# pytest will try to do weird things if you have a function name that starts with `test_`!!
+# "fixture 'test_data' not found"
+def get_test_data_extreme_values(test_data):
     """
     Extract the minimum and maximum values from a list of queries.
 
@@ -57,7 +59,7 @@ def test_data_extreme_values(test_data):
     """
 
     def query_extremes(q):
-        values = x.values()
+        values = q.values()
         return min(values), max(values)
 
     extremes = map(query_extremes, test_data)

@@ -1,44 +1,33 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-import base64
-
-import hmac
-import hashlib
-import random
-import string
-import math
-
 import numpy as np
+import pandas as pd
 
-from ppxgboost.OPEMetadata import *
 import ppxgboost.PaillierAPI as paillier
-from ppxgboost.Model import *
-from ppxgboost.Tree import *
+from ppxgboost.PPModel import *
 
-# multiplicative factor for encoding the message when using OPE
-from ope.pyope.ope import DEFAULT_IN_RANGE_END
-from ppxgboost.PPKey import PPBoostKey
 
-import encodings
-
-def predict_single_input_binary(model, query, default_base_score=0.5):
+def predict_single_input_binary(model: PPModel, query, default_base_score=0.5):
     """
-    return a prediction on a single vector.
-    :param trees: a list of trees (model represenation)
-    :param vector: a single input vector
+    Return the score for this query in a binary classification model
+
+    :param model: the model to evaluate
+    :param query: a single input query
     :param default_base_score: a default score is 0.5 (global bias)
-    :return: the predicted score
+    :return: the query's score
     """
+
     scores = model.eval(query)
     return default_base_score + sum(scores)
 
 
-def predict_single_input_multiclass(model, num_classes, query):
+def predict_single_input_multiclass(model: PPModel, num_classes, query):
     """
-    return a prediction on a single input vector.
+    Return a prediction on a single input vector.
     The algorithm computes the sum of scores for all the corresponding classes (boosters in the xgboost model).
     For each class, it sum up all the leaves' values
+
     :param model: internal model representation
     :param num_classes: the total number classes to classify
     :param query: a single input query
@@ -101,6 +90,7 @@ def client_decrypt_prediction_multiclass(private_key, predictions):
     predicted class.
     This methods first decrypts the aggregated predictions using @private_key@,
     then calls the client_side_multiclass_compute() function.
+
     :param private_key: the private key to decrypt the values.
     :param predictions: encrypted list of predictions (each entry of the list is a list of encrypted scores.)
     :return: the results as numpy.ndarray()

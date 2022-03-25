@@ -10,13 +10,12 @@ import pickle as pl
 import pandas as pd
 import random
 
-from ppxgboost import Model as internalmodel
+from ppxgboost import PPModel as internalmodel
 from ppxgboost import OPEMetadata as metadata
-from ppxgboost import PPBooster as ppbooster
+from ppxgboost import PPQuery as query
 from ope.pyope.ope import OPE, ValueRange
 from ppxgboost import PaillierAPI as paillier
-from ppxgboost.OPEMetadata import Metadata
-from ppxgboost.Tree import *
+from ppxgboost.PPTree import *
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
 class Test_PPMParser:
@@ -37,6 +36,10 @@ class Test_PPMParser:
 
         # for each one of trees, test if the parsed tree is the same as the tree object (calling print in tree object)
         for i in range(len(model.trees)):
+            if dump_tree[i] != tree_to_string(model.trees[i]):
+                print(dump_tree[i])
+                print(tree_to_string(model.trees[i]))
+
             assert dump_tree[i] == tree_to_string(model.trees[i])
 
     def test_ope_node(self):
@@ -74,19 +77,22 @@ class Test_PPMParser:
         test_input_vector = input_vector.copy()
         feature_set = tree.get_features()
         print("Feature set: " + str(list(feature_set)))
-        X_test = input_vector[list(feature_set)]
+        X_test = test_input_vector[list(feature_set)]
+
+        test_queries = query.pandas_to_queries(X_test)
+        x_min, x_max = metadata.get_test_data_extreme_values(test_queries)
 
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.
-        metaDataMinMax = Metadata(tree, X_test)
+        metaDataMinMax = metadata.OPEMetadata(tree, x_min, x_max)
 
         # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
-        test_queries = pandas_to_queries(test_input_vector)
-        q_encryptor = QueryEncryptor(client_key, feature_set, metaDataMinMax)
+
+        q_encryptor = query.QueryEncryptor(client_key, feature_set, metaDataMinMax)
         encrypted_queries = map(q_encryptor.encrypt_query, test_queries)
 
         # 2. process the tree into ope_enc_tree
-        enc_tree = tree.encrypt(encryption_key, metaDataMinMax)
+        enc_tree = tree.encrypt(encryption_key, metaDataMinMax, {})
 
         # 3. OPE evaluation based on OPE encrypted values in the tree nodes.
         encrypted_value = list()

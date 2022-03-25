@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from ppxgboost.PPTree import PPTree
+import ppxgboost.PPTree as PPTree
 from ppxgboost.PPKey import *
 from ppxgboost.OPEMetadata import *
 
@@ -10,7 +10,7 @@ class PPModel:
     A representation of an XGBoost model composed of multiple trees.
     """
 
-    def __init__(self, trees: list[PPTree]):
+    def __init__(self, trees):
         """
         :param trees: a list of PPTrees
         """
@@ -69,7 +69,10 @@ class PPModel:
         :param metadata: OPE metadata
         :return: a new PPModel corresponding to the encryption of `self`
         """
-        return XGBoostModel(map(lambda t: t.encrypt(pp_boost_key, metadata), self.trees))
+
+        # use a global dictionary so that we only encrypt each feature once
+        global_feature_encryption_dict = {}
+        return PPModel(map(lambda t: t.encrypt(pp_boost_key, metadata, global_feature_encryption_dict), self.trees))
 
 
 def from_xgboost_model(model):
@@ -87,14 +90,14 @@ def from_xgboost_model(model):
     # works because the PPTree serialization was designed to coincide with
     # xgboost serialization of a model.
 
-    # get_dump() returns a string representation of the xgboost model.
+    # get_dump() returns a list strings, each representing a single tree in the model
     # We parse this string representation one tree at a time to create
     # an internal representation of the model.
     trees_dump = model.get_dump()
 
     # For each string representation of an xgboost tree, parse the representation
     # into an internal representation of the tree
-    output_trees = map(Tree.parse_tree, trees_dump)
+    output_trees = map(PPTree.parse_tree, trees_dump)
 
     # output an (internal) XGBoost model
-    return XGBoostModel(output_trees)
+    return PPModel(output_trees)

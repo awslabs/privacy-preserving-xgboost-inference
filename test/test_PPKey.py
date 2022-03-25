@@ -5,8 +5,7 @@
 from random import randrange
 from secrets import token_bytes
 from ppxgboost import PaillierAPI as paillier
-from ppxgboost.PPKey import ClientKey
-from ppxgboost.PPKey import PPBoostKey
+from ppxgboost.PPKey import PPModelKey, PPQueryKey
 from ope.pyope.ope import OPE
 
 class Test_Key:
@@ -19,7 +18,7 @@ class Test_Key:
         prf_key = token_bytes(16)
         ope_encrypter = OPE(token_bytes(16))
         public_key, private_key = paillier.he_key_gen()
-        ppBoostKey = PPBoostKey(public_key, prf_key, ope_encrypter)
+        ppBoostKey = PPModelKey(public_key, prf_key, ope_encrypter)
 
         a = randrange(pow(2, 30))
         b = randrange(pow(2, 30))
@@ -42,7 +41,7 @@ class Test_Key:
         prf_key = token_bytes(16)
         ope_encrypter = OPE(token_bytes(16))
         public_key, private_key = paillier.he_key_gen()
-        clientKey = ClientKey(private_key, prf_key, ope_encrypter)
+        clientKey = PPQueryKey(private_key, prf_key, ope_encrypter)
 
         a = randrange(pow(2, 30))
         b = randrange(pow(2, 30))
