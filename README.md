@@ -12,6 +12,7 @@ An extended abstract of this work (https://arxiv.org/abs/2011.04789) appears in 
 This package requires python>=3.8. Install the dependencies with
 
  - xargs -L 1 pip install < requirements.txt
+ - pip3 install pyope
 
 This command installs the dependencies in a specific order.
 
