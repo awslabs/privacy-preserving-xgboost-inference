@@ -10,31 +10,29 @@ import string
 import math
 
 import numpy as np
+import pyope.ope as pyope
 
 import ppxgboost.BoosterParser as bs
 import ppxgboost.PaillierAPI as paillier
 
-# multiplicative factor for encoding the message when using OPE
-from ope.pyope.ope import DEFAULT_IN_RANGE_END
 from ppxgboost.PPKey import PPBoostKey
 
 import encodings
 
-# This is the maximum number that the OPE encryption can support.
-#   Currently, we also set this to be the maximum number that
-#   affine transform map to (see line 54).
-MAX_NUM_OPE_ENC = DEFAULT_IN_RANGE_END
-
-
 class MetaData:
     """
     This is a metadata structure before encryption. It contains the minimum and maximum value
-    from the training dataset as well as the model file
+    from the training dataset as well as the model file.
+
+    # max_num_ope_enc is the maximum number that the OPE encryption can support.
+    #   Currently, we also set this to be the maximum number that
+    #   affine transform map to.
     """
 
-    def __init__(self, min_max: dict):
+    def __init__(self, min_max: dict, max_num_ope_enc = pyope.DEFAULT_IN_RANGE_END):
         self.mini = min_max['min']
         self.maxi = min_max['max']
+        self.max_num_ope_enc = max_num_ope_enc
 
     def set_min(self, new_min):
         self.mini = new_min
@@ -50,7 +48,7 @@ class MetaData:
         :param x: input number
         :return: mapping numerical value
         """
-        return int((x - self.mini) * MAX_NUM_OPE_ENC / (self.maxi - self.mini))
+        return int((x - self.mini) * self.max_num_ope_enc / (self.maxi - self.mini))
 
 
 def sigmoid(number):
@@ -65,7 +63,7 @@ def sigmoid(number):
 def random_string(string_length=16):
     """
     generate random strings
-    :param string_length: 
+    :param string_length:
     :return: random strings
     """
     letters = string.ascii_letters
@@ -122,8 +120,8 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
 
         num = metaData.affine_transform(tree_node.cmp_val)
 
-        if num > MAX_NUM_OPE_ENC or num < 0:
-            raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+        if num > metaData.max_num_ope_enc or num < 0:
+            raise Exception("Invalid input: input is out of range (0, " + metaData.max_num_ope_enc +
                             "), system cannot encrypt", num)
 
         tree_node.cmp_val = ope.encrypt(num)
@@ -321,8 +319,8 @@ def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
 
                 noramlized_feature = metadata.affine_transform(row[feature])
 
-                if noramlized_feature > MAX_NUM_OPE_ENC or noramlized_feature < 0:
-                    raise Exception("Invalid input: input is out of range (0, " + MAX_NUM_OPE_ENC +
+                if noramlized_feature > metadata.max_num_ope_enc or noramlized_feature < 0:
+                    raise Exception("Invalid input: input is out of range (0, " + metaData.max_num_ope_enc +
                                     "). The system cannot encrypt",
                                     noramlized_feature)
 

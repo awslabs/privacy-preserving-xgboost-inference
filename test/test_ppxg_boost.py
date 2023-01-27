@@ -13,12 +13,13 @@ import random
 from secrets import token_bytes
 from ppxgboost import BoosterParser as boostparser
 from ppxgboost import PPBooster as ppbooster
-from ope.pyope.ope import OPE, ValueRange
+import pyope.ope as pyope
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPBooster import MetaData
 
-sys.path.append('../third-party')
-
+# The tests require modified input and output ranges
+in_range = pyope.ValueRange(pyope.DEFAULT_IN_RANGE_START, 2 ** 43 - 1)
+out_range = pyope.ValueRange(pyope.DEFAULT_OUT_RANGE_START, 2 ** 63 - 1)
 
 # Testing class for the pytest. To run simply "pytest test/" this will run all of the test in the test directory.
 class Test_PPMParser:
@@ -76,7 +77,7 @@ class Test_PPMParser:
         # token bytes calls the os.urandom().
         prf_key = token_bytes(16)
         OPE_key = token_bytes(16)
-        encrypter = OPE(OPE_key)
+        encrypter = pyope.OPE(token_bytes(16), in_range, out_range)
 
         # create a copy of the input vector and plaintext trees
         test_input_vector = input_vector.copy()
@@ -86,7 +87,7 @@ class Test_PPMParser:
 
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.
-        metaDataMinMax = MetaData({'min': 0, 'max': 1000})
+        metaDataMinMax = MetaData({'min': 0, 'max': 1000}, in_range.end)
 
         # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
         ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)

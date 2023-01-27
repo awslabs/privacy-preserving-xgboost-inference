@@ -7,8 +7,11 @@ from secrets import token_bytes
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPKey import ClientKey
 from ppxgboost.PPKey import PPBoostKey
-from ope.pyope.ope import OPE
+import pyope.ope as pyope
 
+# The tests require modified input and output ranges
+in_range = pyope.ValueRange(pyope.DEFAULT_IN_RANGE_START, 2 ** 43 - 1)
+out_range = pyope.ValueRange(pyope.DEFAULT_OUT_RANGE_START, 2 ** 63 - 1)
 
 class Test_Key:
     def test_get_PPBoost_key(self):
@@ -18,7 +21,7 @@ class Test_Key:
 
         # Build the PPBoostKey
         prf_key = token_bytes(16)
-        ope_encrypter = OPE(token_bytes(16))
+        ope_encrypter = pyope.OPE(token_bytes(16), in_range, out_range)
         public_key, private_key = paillier.he_key_gen()
         ppBoostKey = PPBoostKey(public_key, prf_key, ope_encrypter)
 
@@ -41,7 +44,7 @@ class Test_Key:
 
         # Build the ClientKey
         prf_key = token_bytes(16)
-        ope_encrypter = OPE(token_bytes(16))
+        ope_encrypter = pyope.OPE(token_bytes(16), in_range, out_range)
         public_key, private_key = paillier.he_key_gen()
         clientKey = ClientKey(private_key, prf_key, ope_encrypter)
 

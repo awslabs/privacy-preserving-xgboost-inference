@@ -3,7 +3,7 @@
 ## Description
 This repo is a prototype implementation of privacy-preserving XGBoost (https://xgboost.readthedocs.io/en/latest/).
 We adopt several property-preserving encryption schemes to encrypt the XGBoost model so that
-the privacy-preserving model can predict an encrypted query. 
+the privacy-preserving model can predict an encrypted query.
 
 An extended abstract of this work (https://arxiv.org/abs/2011.04789) appears in Privacy-preserving Machine Learning Workshop at NeurIPS 2020.
 
@@ -11,8 +11,7 @@ An extended abstract of this work (https://arxiv.org/abs/2011.04789) appears in 
 
 This package requires python>=3.8. Install the dependencies with
 
- - xargs -L 1 pip install < requirements.txt
- - pip3 install pyope
+ - python -m pip install -r requirements.txt
 
 This command installs the dependencies in a specific order.
 
