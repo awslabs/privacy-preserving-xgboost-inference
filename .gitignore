@@ -11,4 +11,5 @@ env/
 develop-eggs/
 dist/
 *.ipynb_checkpoints/
-
+examples/*.nbconvert.ipynb
+examples/tree.txt
