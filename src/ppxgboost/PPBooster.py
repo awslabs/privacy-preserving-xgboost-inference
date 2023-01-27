@@ -320,7 +320,7 @@ def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
                 noramlized_feature = metadata.affine_transform(row[feature])
 
                 if noramlized_feature > metadata.max_num_ope_enc or noramlized_feature < 0:
-                    raise Exception("Invalid input: input is out of range (0, " + metaData.max_num_ope_enc +
+                    raise Exception("Invalid input: input is out of range (0, " + metadata.max_num_ope_enc +
                                     "). The system cannot encrypt",
                                     noramlized_feature)
 
