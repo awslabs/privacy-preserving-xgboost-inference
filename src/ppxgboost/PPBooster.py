@@ -48,6 +48,9 @@ class MetaData:
         :param x: input number
         :return: mapping numerical value
         """
+        if x > self.maxi:
+            raise Exception('Input ' + str(x) + ' is greater than max ' + str(self.maxi))
+
         return int((x - self.mini) * self.max_num_ope_enc / (self.maxi - self.mini))
 
 
