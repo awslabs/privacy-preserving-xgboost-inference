@@ -3,7 +3,7 @@
 
 from phe import PaillierPrivateKey, PaillierPublicKey
 
-from ope.pyope.ope import OPE
+from pyope.ope import OPE
 
 
 class PPBoostKey:

@@ -1,13 +1,13 @@
-cython==0.29.26
-cffi
-numpy>=1.21
-pandas==1.3.5
-phe==1.4.0
-pybind11
-scipy==1.7.1
-scikit-learn==1.0.2
+cython==0.29.33
+cffi==1.15.1
+numpy==1.24.1
+pandas==1.5.3
+phe==1.5.0
+pybind11==2.10.3
+scipy==1.10.0
+scikit-learn==1.2.1
 xgboost==0.90
-flask==2.0.2
-pytest==6.2.5
-./third-party/ope
+flask==2.2.2
+pytest==7.2.1
+pyope==0.2.2
 -e .
