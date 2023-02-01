@@ -19,6 +19,12 @@ Run the tests with:
 - cd test
 - python -m pytest
 
+Run the examples with:
+- cd examples
+- jupyter nbconvert --to notebook --execute foo.ipynb --output foo.ipynb
+You can clear the notebook output with
+- jupyter nbconvert --clear-output --ClearMetadataPreprocessor.enabled=True foo.ipynb
+
 This package depends on the Paillier partially homomorphic encryption scheme (https://en.wikipedia.org/wiki/Paillier_cryptosystem). It also includes source code for a modified version of Boldyreva et. al.'s order-preserving encryption scheme (https://github.com/tonyo/pyope). The source code is place in the 'third-party/ope/' directory.
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md)

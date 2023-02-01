@@ -48,6 +48,9 @@ class MetaData:
         :param x: input number
         :return: mapping numerical value
         """
+        if x > self.maxi:
+            raise Exception('Input ' + str(x) + ' is greater than max ' + str(self.maxi))
+
         return int((x - self.mini) * self.max_num_ope_enc / (self.maxi - self.mini))
 
 
@@ -121,10 +124,13 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
         num = metaData.affine_transform(tree_node.cmp_val)
 
         if num > metaData.max_num_ope_enc or num < 0:
-            raise Exception("Invalid input: input is out of range (0, " + metaData.max_num_ope_enc +
+            raise Exception("Invalid input: input is out of range (0, " + str(metaData.max_num_ope_enc) +
                             "), system cannot encrypt", num)
 
-        tree_node.cmp_val = ope.encrypt(num)
+        try:
+            tree_node.cmp_val = ope.encrypt(num)
+        except e:
+            raise Exception("An error occurred during OPE encryption", e)
 
         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
         tree_node.feature_name = hmac_code
@@ -320,7 +326,7 @@ def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
                 noramlized_feature = metadata.affine_transform(row[feature])
 
                 if noramlized_feature > metadata.max_num_ope_enc or noramlized_feature < 0:
-                    raise Exception("Invalid input: input is out of range (0, " + metadata.max_num_ope_enc +
+                    raise Exception("Invalid input: input is out of range (0, " + str(metadata.max_num_ope_enc) +
                                     "). The system cannot encrypt",
                                     noramlized_feature)
 
