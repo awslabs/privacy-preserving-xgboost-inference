@@ -16,6 +16,8 @@ import ppxgboost.BoosterParser as bs
 import ppxgboost.PaillierAPI as paillier
 
 from ppxgboost.PPKey import PPBoostKey
+import ppxgboost.PPTree as PPTree
+import ppxgboost.PPModel as PPModel
 
 import encodings
 
@@ -108,7 +110,7 @@ def hmac_feature(prf_hash_key, input_vector):
 # This method recursively encrypts the tree_node comparison value using OPE scheme
 # It also uses the PRF to 'pseudo-randomize' the feature name as well
 # It then encrypts the leaf value using he_pub_key (he public key).
-def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
+def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node: PPTree.TreeNode, metaData):
     """
     Process the node
     :param metaData:
@@ -119,7 +121,7 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
     :return: ope encrypted tree
     """
     # If it is not leaf, then encode the comp_val using OPE.
-    if not isinstance(tree_node, bs.Leaf):
+    if isinstance(tree_node, PPTree.Interior):
 
         num = metaData.affine_transform(tree_node.cmp_val)
 
@@ -139,13 +141,13 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node, metaData):
         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_true_child, metaData)
         # Recurse to the if false tree_node
         enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_false_child, metaData)
-    # else it is the bs.Leaf
+    # else it is the PPTree.Leaf
     else:
         # Value....
         tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
 
 
-def enc_xgboost_model(ppBoostKey: PPBoostKey, trees: list, metaData):
+def enc_xgboost_model(ppBoostKey: PPBoostKey, trees: PPModel, metaData):
     """
     Encrypts the model (trees) to an encrypted format.
     :param ppBoostKey: the pp boost key wrapper.
@@ -156,12 +158,12 @@ def enc_xgboost_model(ppBoostKey: PPBoostKey, trees: list, metaData):
     prf_hash_key = ppBoostKey.get_prf_key()
     ope = ppBoostKey.get_ope_encryptor()
 
-    for t in trees:
+    for t in trees.trees:
         enc_tree_node(he_pub_key, prf_hash_key, ope, t, metaData)
     return trees
 
 
-def predict_single_input_binary(trees, vector, default_base_score=0.5):
+def predict_single_input_binary(trees: PPModel, vector, default_base_score=0.5):
     """
     return a prediction on a single vector.
     :param trees: a list of trees (model represenation)
@@ -170,13 +172,13 @@ def predict_single_input_binary(trees, vector, default_base_score=0.5):
     :return: the predicted score
     """
     predict_sum_score = default_base_score
-    for t in trees:
+    for t in trees.trees:
         score = t.eval(vector)
         predict_sum_score += score
     return predict_sum_score
 
 
-def predict_binary(trees, vector, default_base_score=0.5):
+def predict_binary(trees: PPModel, vector, default_base_score=0.5):
     """
     Prediction on @vector over the @trees
     :param default_base_score: default score is 0.5 (according to the xgboost -- global bias)
@@ -192,7 +194,7 @@ def predict_binary(trees, vector, default_base_score=0.5):
     return np.array(result)
 
 
-def predict_single_input_multiclass(trees, num_classes, vector):
+def predict_single_input_multiclass(trees: PPModel, num_classes, vector):
     """
     return a prediction on a single input vector.
     The algorithm computes the sum of scores for all the corresponding classes (boosters in the xgboost model).
@@ -202,7 +204,7 @@ def predict_single_input_multiclass(trees, num_classes, vector):
     :param vector: a single input vector
     :return: the predicted score
     """
-    num_trees = len(trees)
+    num_trees = len(trees.trees)
 
     # sum of score for each category: exp(score)
     result = []
@@ -212,14 +214,14 @@ def predict_single_input_multiclass(trees, num_classes, vector):
     # this is to compute the softmax, however, server can only perform additvely homo operation,
     # so here we can compute scores seperately
     for i in range(num_trees):
-        score = trees[i].eval(vector)
+        score = trees.trees[i].eval(vector)
 
         result[i % num_classes] += score
     # return the result as a list (contains all of the scores for each labels).
     return result
 
 
-def predict_multiclass(trees, num_classes, input_data_df):
+def predict_multiclass(trees: PPModel, num_classes, input_data_df):
     """
     This prediction for dataframe input. For each record,
     it calls the 'predict_single_input_multiclass'
@@ -302,7 +304,6 @@ def enc_input_vector(hash_key, ope, feature_set, input_vector, metadata):
     :param input_vector: input vector
     """
     # starts to encrypt using ope based on the feature set.
-
     feature_list = list(feature_set)
     enc_feature_list = list()
 

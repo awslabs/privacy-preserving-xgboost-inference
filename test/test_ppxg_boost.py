@@ -16,6 +16,8 @@ from ppxgboost import PPBooster as ppbooster
 import pyope.ope as pyope
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPBooster import MetaData
+import ppxgboost.PPModel as PPModel
+import ppxgboost.PPTree as PPTree
 
 # The tests require modified input and output ranges
 in_range = pyope.ValueRange(pyope.DEFAULT_IN_RANGE_START, 2 ** 43 - 1)
@@ -31,16 +33,15 @@ class Test_PPMParser:
         with open(dir_path, 'rb') as f:  # will close() when we leave this block
             testing_model = pl.load(f)
 
+        ppmodel = PPModel.from_xgboost_model(testing_model)
+
         # get the trees in string representation.
         # dump_tree is a list of strings, where each string is tree representation. See the docs in xgBoost for details.
         dump_tree = testing_model.get_dump()
 
-        # use boostparser to convert the model (in strings) to tree objects.
-        parsing_trees, feature_set, min_max = boostparser.model_to_trees(testing_model, {'min': 0, 'max': 1})
-
         # for each one of trees, test if the parsed tree is the same as the tree object (calling print in tree object)
-        for i in range(len(parsing_trees)):
-            assert dump_tree[i] == boostparser.tree_to_string(parsing_trees[i])
+        for i in range(len(dump_tree)):
+            assert dump_tree[i] == PPTree.tree_to_string(ppmodel.trees[i])
 
     def test_ope_node(self):
         """
@@ -55,22 +56,22 @@ class Test_PPMParser:
         input_vector = pd.read_csv('test_files/test_prediction_input.csv')
 
         ################################################################################################
-        # The folowing is to compute the scores for the decision tree on input vectors in plaintext!
+        # The following is to compute the scores for the decision tree on input vectors in plaintext!
         ################################################################################################
-        feature_set = set()
 
         # As this test just to test the correctness of the encrypt_tree_node method
-        # add min_max just to 'fake' some min-max value for this test
-        tree = boostparser.parse_tree(t1, feature_set, min_max={'min': 0, 'max': 1})
+        tree = PPTree.parse_tree(t1)
+        feature_set = tree.get_features()
 
         # The score list value in plaintext.
         score_value = list()
         # get each row indexing with input vector's head
         for index, row in input_vector.iterrows():
+            # print(row)
             score_value.append(tree.eval(row))
 
         ################################################################################################
-        # The folowing is to compute the scores based on the OPE processed decision tree
+        # The following is to compute the scores based on the OPE processed decision tree
         ################################################################################################
 
         # Set up encrytion materials.
