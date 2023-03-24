@@ -33,6 +33,8 @@ class Test_PPMParser:
 
         ppmodel = PPModel.from_xgboost_model(testing_model)
 
+        ppmodel = PPModel.from_xgboost_model(testing_model)
+
         # get the trees in string representation.
         # dump_tree is a list of strings, where each string is tree representation. See the docs in xgBoost for details.
         dump_tree = testing_model.get_dump()
@@ -65,6 +67,7 @@ class Test_PPMParser:
         score_value = list()
         # get each row indexing with input vector's head
         for index, row in input_vector.iterrows():
+            # print(row)
             score_value.append(tree.eval(row))
 
         ################################################################################################
