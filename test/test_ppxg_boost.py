@@ -15,7 +15,7 @@ from ppxgboost import BoosterParser as boostparser
 from ppxgboost import PPBooster as ppbooster
 import pyope.ope as pyope
 from ppxgboost import PaillierAPI as paillier
-from ppxgboost.PPBooster import MetaData
+import ppxgboost.OPEMetadata as OPEMetadata
 import ppxgboost.PPModel as PPModel
 import ppxgboost.PPTree as PPTree
 
@@ -88,7 +88,7 @@ class Test_PPMParser:
 
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.
-        metaDataMinMax = MetaData({'min': 0, 'max': 1000}, in_range.end)
+        metaDataMinMax = OPEMetadata.OPEMetadata(tree, 0, 1000, in_range.end)
 
         # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
         ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)

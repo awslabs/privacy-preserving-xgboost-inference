@@ -21,41 +21,6 @@ import ppxgboost.PPModel as PPModel
 
 import encodings
 
-class MetaData:
-    """
-    This is a metadata structure before encryption. It contains the minimum and maximum value
-    from the training dataset as well as the model file.
-
-    # max_num_ope_enc is the maximum number that the OPE encryption can support.
-    #   Currently, we also set this to be the maximum number that
-    #   affine transform map to.
-    """
-
-    def __init__(self, min_max: dict, max_num_ope_enc = pyope.DEFAULT_IN_RANGE_END):
-        self.mini = min_max['min']
-        self.maxi = min_max['max']
-        self.max_num_ope_enc = max_num_ope_enc
-
-    def set_min(self, new_min):
-        self.mini = new_min
-
-    def set_max(self, new_max):
-        self.maxi = new_max
-
-    def affine_transform(self, x):
-        """
-        This affine transformation will linearly rescale [min, max] to [0, MAX_NUM_AFFINE].
-        Linear rescaling:  (x - n_min) * MAX_NUM_AFFINE / (n_max - n_min)
-                           MAX_NUM_AFFINE / (n_max - n_min) x - MAX_NUM_AFFINE * n_min
-        :param x: input number
-        :return: mapping numerical value
-        """
-        if x > self.maxi:
-            raise Exception('Input ' + str(x) + ' is greater than max ' + str(self.maxi))
-
-        return int((x - self.mini) * self.max_num_ope_enc / (self.maxi - self.mini))
-
-
 def sigmoid(number):
     """
     Return the logistic function of a number
