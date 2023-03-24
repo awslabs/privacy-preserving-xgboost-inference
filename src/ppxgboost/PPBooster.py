@@ -72,62 +72,6 @@ def hmac_feature(prf_hash_key, input_vector):
     return input_vector
 
 
-# This method recursively encrypts the tree_node comparison value using OPE scheme
-# It also uses the PRF to 'pseudo-randomize' the feature name as well
-# It then encrypts the leaf value using he_pub_key (he public key).
-def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node: PPTree.TreeNode, metaData):
-    """
-    Process the node
-    :param metaData:
-    :param he_pub_key: the homomorphic key
-    :param prf_hash_key: hash key for hmac
-    :param ope: ope object for encrypting the comparison value
-    :param tree_node: the Interier object (node) in the decision tree.
-    :return: ope encrypted tree
-    """
-    # If it is not leaf, then encode the comp_val using OPE.
-    if isinstance(tree_node, PPTree.Interior):
-
-        num = metaData.affine_transform(tree_node.cmp_val)
-
-        if num > metaData.max_num_ope_enc or num < 0:
-            raise Exception("Invalid input: input is out of range (0, " + str(metaData.max_num_ope_enc) +
-                            "), system cannot encrypt", num)
-
-        try:
-            tree_node.cmp_val = ope.encrypt(num)
-        except Exception as e:
-            raise Exception("An error occurred during OPE encryption", e)
-
-        hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
-        tree_node.feature_name = hmac_code
-
-        # Recurse to the if true tree_node
-        enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_true_child, metaData)
-        # Recurse to the if false tree_node
-        enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node.if_false_child, metaData)
-    # else it is the PPTree.Leaf
-    else:
-        # Value....
-        tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
-
-
-def enc_xgboost_model(ppModelKey: PPModelKey, trees: PPModel, metaData):
-    """
-    Encrypts the model (trees) to an encrypted format.
-    :param ppModelKey: the model key wrapper.
-    :param metaData: metaData containing min, max information
-    :param trees: the model as an input (a list of trees)
-    """
-    he_pub_key = ppModelKey.get_public_key()
-    prf_hash_key = ppModelKey.get_prf_key()
-    ope = ppModelKey.get_ope_encryptor()
-
-    for t in trees.trees:
-        enc_tree_node(he_pub_key, prf_hash_key, ope, t, metaData)
-    return trees
-
-
 def predict_single_input_binary(trees: PPModel, vector, default_base_score=0.5):
     """
     return a prediction on a single vector.

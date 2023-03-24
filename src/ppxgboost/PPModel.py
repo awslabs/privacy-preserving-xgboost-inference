@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import ppxgboost.PPTree as PPTree
-from ppxgboost.PPKey import *
+from ppxgboost.PPKey import PPModelKey
 import xgboost
-# from ppxgboost.OPEMetadata import *
+from ppxgboost.OPEMetadata import OPEMetadata
 
 class PPModel:
     """
@@ -26,7 +26,7 @@ class PPModel:
         :return: result of evaluating the model on x
         """
 
-        return map(lambda t: t.eval(x), self.trees)
+        return sum(map(lambda t: t.eval(x), self.trees))
 
     def get_features(self):
         """
@@ -50,6 +50,30 @@ class PPModel:
             min_val = min(min_val, t_min)
             max_val = max(max_val, t_max)
         return min_val, max_val
+
+    def discretize(self):
+        """
+        Discretize the model in preparation for encrypted evaluation.
+        Do this step before encryption.
+
+        :return: None
+        """
+
+        for t in self.trees:
+            t.discretize()
+
+    def encrypt(self, pp_boost_key: PPModelKey, metadata: OPEMetadata):
+        """
+        Encrypt a plaintext XGBoost model
+
+        :param pp_boost_key: The model encryption key
+        :param metadata: OPE metadata
+        :return: a new PPModel corresponding to the encryption of `self`
+        """
+
+        # use a global dictionary so that we only encrypt each feature once
+        global_feature_encryption_dict = {}
+        return PPModel(map(lambda t: t.encrypt(pp_boost_key, metadata, global_feature_encryption_dict), self.trees))
 
 
 def from_xgboost_model(model: xgboost.core.Booster) -> PPModel:

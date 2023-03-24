@@ -3,15 +3,35 @@
 
 import numpy as np
 import re
+import base64
+import encodings
+import hashlib
+import hmac
 
-from ppxgboost.PPKey import *
-# from ppxgboost.OPEMetadata import *
-# from ppxgboost.PPQuery import hmac_msg
+from ppxgboost.PPKey import PPModelKey
+from ppxgboost.OPEMetadata import OPEMetadata
+import ppxgboost.PaillierAPI as paillier
 
 # The precision bound we cannot tolerate (beyond this we cannot handle it)
 PRECISION_BOUND_COMP_ZERO = 1.0e-8
 # We set the precision to the following bound
 SETUP_BOUND_COMP_ZERO = 1.0e-7
+
+def hmac_msg(prf_key_hash: bytes, feature):
+    """
+    HMAC of a string using the provided key
+
+    :param prf_key_hash: hash key as bytes
+    :param feature: feature name as a string (encoded using 'UTF-8')
+    :return: HMAC of feature name
+    """
+
+    # The encryption scheme requires a PRF to create 'pseudonyms' for the features.
+    # We instantiate the PRF with HMAC using utf-8 encoding (python3) for feature names.
+    # A reference that shows HMAC is a PRF (see Theorem 1 in https://eprint.iacr.org/2014/578.pdf)
+    message = bytes(feature, encodings.utf_8.getregentry().name)
+    sig = base64.b64encode(hmac.new(prf_key_hash, message, hashlib.sha256).digest())
+    return sig.decode()
 
 # This module implements a basic tree structure for XGBoost trees,
 # plus serialization to/deserialization from a string. The serialization
@@ -79,6 +99,40 @@ class Leaf(TreeNode):
         """
 
         return float('inf'), float('-inf')
+
+    def discretize(self):
+        """
+        Discretize the model in preparation for encrypted evaluation.
+        Do this step before encryption.
+
+        :return: None
+        """
+
+        # As Client's query is unpredictible, it's impossible
+        # this is only to avoid the comparision between two extreme tiny
+        # values when encountered in the model. The Affine transform from
+        # PPBoost.py already takes care of the precision up to 1.0e-7.
+        #
+        # In case we encountered a comparision
+        # between ~1.0e-14 and 0. OPE cannot support this,
+        # so manually set the tiny number (1.0e-14) to a bigger
+        # number (1.0e-7) in order to make the comparison go thru.
+        # As a result, the current methodology cannot support more than 7 digits of
+        # floating number precision.
+        if abs(self.value) <= PRECISION_BOUND_COMP_ZERO:
+            self.value = SETUP_BOUND_COMP_ZERO * int(np.sign(self.value))
+
+    def encrypt(self, pp_boost_key: PPModelKey, metadata: OPEMetadata, feature_encryption_dict):
+        """
+        Encrypt a plaintext XGBoost model
+
+        :param pp_boost_key: The model encryption key
+        :param metadata: OPE metadata
+        :param feature_encryption_dict: dictionary from plaintext feature name to PRF'd feature name
+        :return: a new PPModel corresponding to the encryption of `self`
+        """
+        encrypted_value = paillier.encrypt(pp_boost_key.get_public_key(), self.value)
+        return Leaf(self.id, encrypted_value)
 
 class Interior(TreeNode):
     """
@@ -170,6 +224,46 @@ class Interior(TreeNode):
         min1, max1 = self.if_true_child.get_extreme_values()
         min2, max2 = self.if_false_child.get_extreme_values()
         return min(min1, min2, self.cmp_val), max(max1, max2, self.cmp_val)
+
+    def discretize(self):
+        """
+        Discretize the model in preparation for encrypted evaluation.
+        Do this step before encryption.
+
+        :return: None
+        """
+
+        if abs(self.cmp_val) <= PRECISION_BOUND_COMP_ZERO:
+            self.cmp_val = SETUP_BOUND_COMP_ZERO * int(np.sign(self.cmp_val))
+        self.if_true_child.discretize()
+        self.if_false_child.discretize()
+
+    def encrypt(self, pp_boost_key: PPModelKey, metadata: OPEMetadata, feature_encryption_dict):
+        """
+        Encrypt a plaintext XGBoost model
+
+        :param pp_boost_key: The model encryption key
+        :param metadata: OPE metadata
+        :param feature_encryption_dict: dictionary from plaintext feature name to PRF'd feature name
+        :return: a new PPModel corresponding to the encryption of `self`
+        """
+
+        num = metadata.affine_transform(self.cmp_val)
+        encrypted_val = pp_boost_key.get_ope_encryptor().encrypt(num)
+
+        if self.feature_name not in feature_encryption_dict:
+            feature_encryption_dict[self.feature_name] = hmac_msg(pp_boost_key.get_prf_key(), self.feature_name)
+        encrypted_feature = feature_encryption_dict[self.feature_name]
+
+        encrypted_true_subtree = self.if_true_child.encrypt(pp_boost_key, metadata, feature_encryption_dict)
+        encrypted_false_subtree = self.if_false_child.encrypt(pp_boost_key, metadata, feature_encryption_dict)
+
+        if self.if_true_child == self.default_child:
+            encrypted_default_subtree = encrypted_true_subtree
+        else:
+            encrypted_default_subtree = encrypted_false_subtree
+
+        return Interior(self.id, encrypted_feature, encrypted_val, encrypted_true_subtree, encrypted_false_subtree, encrypted_default_subtree)
 
 def tree_to_string(t: TreeNode):
     """
