@@ -5,10 +5,10 @@ import json
 import phe
 
 
-# Wrapper of the pailler encryption scheme.
+# Wrapper of the Paillier encryption scheme.
 def he_key_gen(private_keyring=None, n_length=phe.paillier.DEFAULT_KEYSIZE):
     """
-    Key generation of the paillier homomorphic encryption. The key_gen can take
+    Key generation of the Paillier homomorphic encryption. The key_gen can take
     a private_key and n_length as parameters. The default key length is 2048
     :param private_keyring: this parameter is the private key that used to
         generate the public key. We usually do not set up this parameter.
@@ -18,20 +18,6 @@ def he_key_gen(private_keyring=None, n_length=phe.paillier.DEFAULT_KEYSIZE):
 
     public_key, private_key = phe.generate_paillier_keypair(private_keyring, n_length)
     return public_key, private_key
-
-
-def message_modulus_size(public_key):
-    """
-    :param public_key: the public key - pub_key:(n, g). In this case g = n+1
-    :return: n -- the upper bound for the message space. The input message can
-    be as large as n/3 based on the message encoding. Any number bigger than n/3
-    will cause overflow.
-    """
-    # this message is defined in paillier message encoding to avoid overflow.
-    # the input message (specified in the PHE library --> n/3) -> the message space
-    # is not actually (0, n)
-    return public_key.n // 3
-
 
 def encrypt(public_key, msg, precision=None):
     """
