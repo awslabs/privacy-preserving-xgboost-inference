@@ -51,17 +51,6 @@ class PPModel:
             max_val = max(max_val, t_max)
         return min_val, max_val
 
-    def discretize(self):
-        """
-        Discretize the model in preparation for encrypted evaluation.
-        Do this step before encryption.
-
-        :return: None
-        """
-
-        for t in self.trees:
-            t.discretize()
-
     def encrypt(self, pp_boost_key: PPModelKey, metadata: OPEMetadata):
         """
         Encrypt a plaintext XGBoost model
