@@ -19,7 +19,7 @@ class Test_Key:
         """
 
         # Build the PPModelKey
-        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys()
+        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys(in_range, out_range)
 
         a = randrange(pow(2, 30))
         b = randrange(pow(2, 30))
@@ -39,7 +39,7 @@ class Test_Key:
         """
 
         # Build the PPQueryKey
-        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys()
+        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys(in_range, out_range)
 
         a = randrange(pow(2, 30))
         b = randrange(pow(2, 30))

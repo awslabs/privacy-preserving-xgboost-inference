@@ -131,7 +131,7 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node: PPTree.TreeNode, met
 
         try:
             tree_node.cmp_val = ope.encrypt(num)
-        except e:
+        except Exception as e:
             raise Exception("An error occurred during OPE encryption", e)
 
         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from phe import PaillierPrivateKey, PaillierPublicKey
-from ope.pyope.ope import OPE
+from pyope.ope import OPE, ValueRange, DEFAULT_IN_RANGE_START, DEFAULT_IN_RANGE_END, DEFAULT_OUT_RANGE_START, DEFAULT_OUT_RANGE_END
 from secrets import token_bytes
 import ppxgboost.PaillierAPI as paillier
 
@@ -76,8 +76,11 @@ class PPQueryKey:
         """
         return self.__ope_encryptor
 
+# default OPE parameters
+default_input_range = ValueRange(DEFAULT_IN_RANGE_START, DEFAULT_IN_RANGE_END)
+default_output_range = ValueRange(DEFAULT_OUT_RANGE_START, DEFAULT_OUT_RANGE_END)
 
-def generatePPXGBoostKeys():
+def generatePPXGBoostKeys(ope_input_range = default_input_range, ope_output_range = default_output_range):
     """
     Generate keys to encrypt an XGBoost model, encrypt queries, and decrypt query results.
 
@@ -87,5 +90,5 @@ def generatePPXGBoostKeys():
     # token bytes calls the os.urandom().
     prf_key = token_bytes(16)
     paillier_public_key, paillier_private_key = paillier.he_key_gen()
-    ope_encryptor = OPE(token_bytes(16))
+    ope_encryptor = OPE(token_bytes(16), ope_input_range, ope_output_range)
     return (PPModelKey(paillier_public_key, prf_key, ope_encryptor), PPQueryKey(paillier_private_key, prf_key, ope_encryptor))
