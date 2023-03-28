@@ -26,7 +26,7 @@ class PPModel:
         :return: result of evaluating the model on x
         """
 
-        return sum(map(lambda t: t.eval(x), self.trees))
+        return list(map(lambda t: t.eval(x), self.trees))
 
     def get_features(self):
         """

@@ -3,14 +3,11 @@
 
 import numpy as np
 import re
-import base64
-import encodings
-import hashlib
-import hmac
 
 from ppxgboost.PPKey import PPModelKey
 from ppxgboost.OPEMetadata import OPEMetadata
 import ppxgboost.PaillierAPI as paillier
+from ppxgboost.PPQuery import PPQuery, hmac_msg
 
 # This module implements a basic tree structure for XGBoost trees,
 # plus serialization to/deserialization from a string. The serialization
@@ -118,7 +115,7 @@ class Interior(TreeNode):
         self.if_false_child = if_false_child
         self.default_child = default_child
 
-    def eval(self, x):
+    def eval(self, x: PPQuery):
         """
         Evaluate the model on the given query.
 
@@ -128,18 +125,20 @@ class Interior(TreeNode):
 
         if x is None:
             raise RuntimeError("None in eval")
-        if self.feature_name not in x:
+
+        qd = x.query_dict
+        if self.feature_name not in qd:
             print('Feature name ' + self.feature_name + ' is not available in query')
-            print(x)
+            print(qd)
             raise RuntimeError("Feature name not available in eval")
 
-        if np.isnan(x[self.feature_name]):
-            return self.default_child.eval(x)
+        if np.isnan(qd[self.feature_name]):
+            return self.default_child.eval(qd)
 
-        if x[self.feature_name] < self.cmp_val:
-            return self.if_true_child.eval(x)
+        if qd[self.feature_name] < self.cmp_val:
+            return self.if_true_child.eval(qd)
         else:
-            return self.if_false_child.eval(x)
+            return self.if_false_child.eval(qd)
 
     def node_to_string(self, lvl):
         """
