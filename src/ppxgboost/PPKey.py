@@ -88,4 +88,4 @@ def generatePPXGBoostKeys():
     prf_key = token_bytes(16)
     paillier_public_key, paillier_private_key = paillier.he_key_gen()
     ope_encryptor = OPE(token_bytes(16))
-    return PPModelKey(paillier_public_key, prf_key, ope_encryptor), PPQueryKey(paillier_private_key, prf_key, ope_encryptor)
+    return (PPModelKey(paillier_public_key, prf_key, ope_encryptor), PPQueryKey(paillier_private_key, prf_key, ope_encryptor))
