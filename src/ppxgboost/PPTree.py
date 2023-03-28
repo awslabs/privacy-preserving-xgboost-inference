@@ -63,13 +63,8 @@ class Leaf(TreeNode):
         :param lvl: The level in the tree of this leaf
         :return: A string representing this leaf node
         """
-        # Newer version of xgboost library dumps negative zero without a trailing decimal
-        # There doesn't seem to be a good way to handle this mathematically, so we just
-        # test the string here.
-        x = str(self.value)
-        if x == '-0.0':
-            x = '-0'
-        return '\t'*lvl + str(self.id) + ":leaf=" + x + "\n"
+
+        return '\t'*lvl + str(self.id) + ":leaf=" + str(self.value) + "\n"
 
     def get_features(self):
         """
