@@ -6,7 +6,6 @@ import pytest
 # This test file mainly tests binary prediction for xgboost
 # It tests all of the interfaces using OPE, Paillier, etc.
 import sys
-import pickle as pl
 import pandas as pd
 import random
 
@@ -28,10 +27,9 @@ class Test_PPMParser:
 
     # the testing for the parsing the model and the dumped trees.
     def test_model_parse(self):
-        dir_path = "test_files/model_file.pkl"
-
-        with open(dir_path, 'rb') as f:  # will close() when we leave this block
-            testing_model = pl.load(f)
+        dir_path = "test_files/model_file.bin"
+        testing_model = xgboost.Booster()
+        testing_model.load_model(dir_path)
 
         ppmodel = PPModel.from_xgboost_model(testing_model)
 
