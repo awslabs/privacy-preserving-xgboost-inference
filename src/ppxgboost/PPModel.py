@@ -3,6 +3,7 @@
 
 import ppxgboost.PPTree as PPTree
 from ppxgboost.PPKey import PPModelKey
+from ppxgboost.PPQuery import PPQuery
 import xgboost
 from ppxgboost.OPEMetadata import OPEMetadata
 
@@ -18,7 +19,7 @@ class PPModel:
 
         self.trees = list(trees)
 
-    def eval(self, x):
+    def eval(self, x: PPQuery):
         """
         Evaluate the model on the given query.
 

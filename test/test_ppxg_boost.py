@@ -73,7 +73,7 @@ class Test_PPMParser:
         ################################################################################################
 
         # Set up encrytion materials.
-        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys()
+        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys(in_range, out_range)
 
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.

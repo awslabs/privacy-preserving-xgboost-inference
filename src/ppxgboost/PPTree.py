@@ -133,12 +133,12 @@ class Interior(TreeNode):
             raise RuntimeError("Feature name not available in eval")
 
         if np.isnan(qd[self.feature_name]):
-            return self.default_child.eval(qd)
+            return self.default_child.eval(x)
 
         if qd[self.feature_name] < self.cmp_val:
-            return self.if_true_child.eval(qd)
+            return self.if_true_child.eval(x)
         else:
-            return self.if_false_child.eval(qd)
+            return self.if_false_child.eval(x)
 
     def node_to_string(self, lvl):
         """
