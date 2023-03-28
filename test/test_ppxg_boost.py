@@ -67,7 +67,6 @@ class Test_PPMParser:
         score_value = list()
         # get each row indexing with input vector's head
         for index, row in input_vector.iterrows():
-            # print(row)
             score_value.append(tree.eval(row))
 
         ################################################################################################
