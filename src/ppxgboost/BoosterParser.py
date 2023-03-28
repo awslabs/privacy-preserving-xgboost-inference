@@ -32,14 +32,7 @@ class Leaf:
         ans = ""
         for i in range(0, lvl):
             ans = ans + "\t"
-
-        # Newer version of xgboost library dumps negative zero without a trailing decimal
-        # There doesn't seem to be a good way to handle this mathematically, so we just
-        # test the string here.
-        x = str(self.value)
-        if x == '-0.0':
-            x = '-0'
-        return ans + str(self.id) + ":leaf=" + x + "\n"
+        return ans + str(self.id) + ":leaf=" + str(self.value) + "\n"
 
 
 # This the interior data structure in the tree data structure.
