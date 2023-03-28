@@ -6,7 +6,6 @@ import pytest
 # This test file mainly tests binary prediction for xgboost
 # It tests all of the interfaces using OPE, Paillier, etc.
 import sys
-import pickle as pl
 import pandas as pd
 import random
 
@@ -16,6 +15,7 @@ from ppxgboost import PPBooster as ppbooster
 import pyope.ope as pyope
 from ppxgboost import PaillierAPI as paillier
 from ppxgboost.PPBooster import MetaData
+import xgboost
 
 # The tests require modified input and output ranges
 in_range = pyope.ValueRange(pyope.DEFAULT_IN_RANGE_START, 2 ** 43 - 1)
@@ -26,10 +26,9 @@ class Test_PPMParser:
 
     # the testing for the parsing the model and the dumped trees.
     def test_model_parse(self):
-        dir_path = "test_files/model_file.pkl"
-
-        with open(dir_path, 'rb') as f:  # will close() when we leave this block
-            testing_model = pl.load(f)
+        dir_path = "test_files/model_file.bin"
+        testing_model = xgboost.Booster()
+        testing_model.load_model(dir_path)
 
         # get the trees in string representation.
         # dump_tree is a list of strings, where each string is tree representation. See the docs in xgBoost for details.
