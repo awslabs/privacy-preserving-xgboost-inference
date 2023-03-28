@@ -4,14 +4,10 @@
 import numpy as np
 import re
 
-from ppxgboost.PPKey import *
-# from ppxgboost.OPEMetadata import *
-# from ppxgboost.PPQuery import hmac_msg
-
-# The precision bound we cannot tolerate (beyond this we cannot handle it)
-PRECISION_BOUND_COMP_ZERO = 1.0e-8
-# We set the precision to the following bound
-SETUP_BOUND_COMP_ZERO = 1.0e-7
+from ppxgboost.PPKey import PPModelKey
+from ppxgboost.OPEMetadata import OPEMetadata
+import ppxgboost.PaillierAPI as paillier
+from ppxgboost.PPQuery import PPQuery, hmac_msg
 
 # This module implements a basic tree structure for XGBoost trees,
 # plus serialization to/deserialization from a string. The serialization
@@ -80,6 +76,18 @@ class Leaf(TreeNode):
 
         return float('inf'), float('-inf')
 
+    def encrypt(self, pp_boost_key: PPModelKey, metadata: OPEMetadata, feature_encryption_dict):
+        """
+        Encrypt a plaintext XGBoost model
+
+        :param pp_boost_key: The model encryption key
+        :param metadata: OPE metadata
+        :param feature_encryption_dict: dictionary from plaintext feature name to PRF'd feature name
+        :return: a new PPModel corresponding to the encryption of `self`
+        """
+        encrypted_value = paillier.encrypt(pp_boost_key.get_public_key(), self.value)
+        return Leaf(self.id, encrypted_value)
+
 class Interior(TreeNode):
     """
      An interior node in a (binary) tree
@@ -107,7 +115,7 @@ class Interior(TreeNode):
         self.if_false_child = if_false_child
         self.default_child = default_child
 
-    def eval(self, x):
+    def eval(self, x: PPQuery):
         """
         Evaluate the model on the given query.
 
@@ -117,15 +125,17 @@ class Interior(TreeNode):
 
         if x is None:
             raise RuntimeError("None in eval")
-        if self.feature_name not in x:
+
+        qd = x.query_dict
+        if self.feature_name not in qd:
             print('Feature name ' + self.feature_name + ' is not available in query')
-            print(x)
+            print(qd)
             raise RuntimeError("Feature name not available in eval")
 
-        if np.isnan(x[self.feature_name]):
+        if np.isnan(qd[self.feature_name]):
             return self.default_child.eval(x)
 
-        if x[self.feature_name] < self.cmp_val:
+        if qd[self.feature_name] < self.cmp_val:
             return self.if_true_child.eval(x)
         else:
             return self.if_false_child.eval(x)
@@ -170,6 +180,33 @@ class Interior(TreeNode):
         min1, max1 = self.if_true_child.get_extreme_values()
         min2, max2 = self.if_false_child.get_extreme_values()
         return min(min1, min2, self.cmp_val), max(max1, max2, self.cmp_val)
+
+    def encrypt(self, pp_boost_key: PPModelKey, metadata: OPEMetadata, feature_encryption_dict):
+        """
+        Encrypt a plaintext XGBoost model
+
+        :param pp_boost_key: The model encryption key
+        :param metadata: OPE metadata
+        :param feature_encryption_dict: dictionary from plaintext feature name to PRF'd feature name
+        :return: a new PPModel corresponding to the encryption of `self`
+        """
+
+        num = metadata.affine_transform(self.cmp_val)
+        encrypted_val = pp_boost_key.get_ope_encryptor().encrypt(num)
+
+        if self.feature_name not in feature_encryption_dict:
+            feature_encryption_dict[self.feature_name] = hmac_msg(pp_boost_key.get_prf_key(), self.feature_name)
+        encrypted_feature = feature_encryption_dict[self.feature_name]
+
+        encrypted_true_subtree = self.if_true_child.encrypt(pp_boost_key, metadata, feature_encryption_dict)
+        encrypted_false_subtree = self.if_false_child.encrypt(pp_boost_key, metadata, feature_encryption_dict)
+
+        if self.if_true_child == self.default_child:
+            encrypted_default_subtree = encrypted_true_subtree
+        else:
+            encrypted_default_subtree = encrypted_false_subtree
+
+        return Interior(self.id, encrypted_feature, encrypted_val, encrypted_true_subtree, encrypted_false_subtree, encrypted_default_subtree)
 
 def tree_to_string(t: TreeNode):
     """

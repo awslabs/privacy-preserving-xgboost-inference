@@ -5,19 +5,17 @@ import pytest
 
 # This test file mainly tests binary prediction for xgboost
 # It tests all of the interfaces using OPE, Paillier, etc.
-import sys
 import pickle as pl
 import pandas as pd
 import random
 
-from secrets import token_bytes
-from ppxgboost import BoosterParser as boostparser
-from ppxgboost import PPBooster as ppbooster
 import pyope.ope as pyope
 from ppxgboost import PaillierAPI as paillier
 import ppxgboost.OPEMetadata as OPEMetadata
 import ppxgboost.PPModel as PPModel
 import ppxgboost.PPTree as PPTree
+import ppxgboost.PPKey as PPKey
+import ppxgboost.PPQuery as PPQuery
 
 # The tests require modified input and output ranges
 in_range = pyope.ValueRange(pyope.DEFAULT_IN_RANGE_START, 2 ** 43 - 1)
@@ -60,51 +58,42 @@ class Test_PPMParser:
         ################################################################################################
 
         # As this test just to test the correctness of the encrypt_tree_node method
-        tree = PPTree.parse_tree(t1)
-        feature_set = tree.get_features()
+        ppModel = PPModel.PPModel([PPTree.parse_tree(t1)])
+        features = ppModel.get_features()
 
         # The score list value in plaintext.
         score_value = list()
         # get each row indexing with input vector's head
-        for index, row in input_vector.iterrows():
-            # print(row)
-            score_value.append(tree.eval(row))
+        queries = PPQuery.pandas_to_queries(input_vector)
+        # Evaluating a model produces a list of results; we only want the result for the (one and) only tree in this model
+        score_value = list(map(lambda q: ppModel.eval(q)[0], queries))
 
         ################################################################################################
         # The following is to compute the scores based on the OPE processed decision tree
         ################################################################################################
 
         # Set up encrytion materials.
-        # token bytes calls the os.urandom().
-        prf_key = token_bytes(16)
-        OPE_key = token_bytes(16)
-        encrypter = pyope.OPE(token_bytes(16), in_range, out_range)
-
-        # create a copy of the input vector and plaintext trees
-        test_input_vector = input_vector.copy()
-        enc_tree = tree
-
-        public_key, private_key = paillier.he_key_gen()
+        ppModelKey, ppQueryKey = PPKey.generatePPXGBoostKeys(in_range, out_range)
 
         # as this only test the enc_tree_node ope, add fake metadata (min and max) for this computation
         # just for testing purposes.
-        metaDataMinMax = OPEMetadata.OPEMetadata(tree, 0, 1000, in_range.end)
+        metadata = OPEMetadata.OPEMetadata(ppModel, 0, 1000, in_range.end)
 
         # 1. Encrypts the input vector for prediction (using prf_key_hash and ope-encrypter) based on the feature set.
-        ppbooster.enc_input_vector(prf_key, encrypter, feature_set, test_input_vector, metaDataMinMax)
+
+        queryEncryptor = PPQuery.QueryEncryptor(ppQueryKey, features, metadata)
+        enc_queries = PPQuery.encrypt_queries(queryEncryptor, queries)
 
         # 2. process the tree into ope_enc_tree
-        ppbooster.enc_tree_node(public_key, prf_key, encrypter, enc_tree, metaDataMinMax)
+        enc_model = ppModel.encrypt(ppModelKey, metadata)
 
         # 3. OPE evaluation based on OPE encrypted values in the tree nodes.
-        encrypted_value = list()
-        for index, row in test_input_vector.iterrows():
-            score = enc_tree.eval(row)
-            encrypted_value.append(score)
+        # Evaluating a model produces a list of results; we only want the result for the (one and) only tree in this model
+        encrypted_value = list(map(lambda q: enc_model.eval(q)[0], enc_queries))
 
         dec_value = list()
         for c in encrypted_value:
-            dec_value.append(paillier.decrypt(private_key, c))
+            dec_value.append(paillier.decrypt(ppQueryKey.get_private_key(), c))
 
         # 4. compare
         assert dec_value == score_value

@@ -42,29 +42,3 @@ class OPEMetadata:
                             str(self.min_val) + ', ' + str(self.max_val) + ']')
 
         return int((x - self.min_val) * self.max_num_ope_enc / (self.max_val - self.min_val))
-
-
-# pytest will try to do weird things if you have a function name that starts with `test_`!!
-# "fixture 'test_data' not found"
-def get_test_data_extreme_values(test_data):
-    """
-    Extract the minimum and maximum values from a list of queries.
-
-    The `OPEMetadata` class requires an estimate for the minimum and maximum
-    values across all features and all queries. For tests and examples,
-    the entire test dataset is known in advance, so we can just extract
-    the minimum and maximum values from the dataset directly.
-
-    :param test_data: A non-empty list of queries (dictionaries)
-    :return: minimum value across all queries, maximum value across all queries
-    """
-
-    def query_extremes(q):
-        values = q.values()
-        return min(values), max(values)
-
-    extremes = map(query_extremes, test_data)
-    # unpack the list of tuples into mins and maxes
-    q_mins, q_maxs = list(zip(*extremes))
-
-    return min(q_mins), max(q_maxs)
