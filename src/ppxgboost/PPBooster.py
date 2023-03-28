@@ -15,7 +15,7 @@ import pyope.ope as pyope
 import ppxgboost.BoosterParser as bs
 import ppxgboost.PaillierAPI as paillier
 
-from ppxgboost.PPKey import PPBoostKey
+from ppxgboost.PPKey import PPModelKey
 import ppxgboost.PPTree as PPTree
 import ppxgboost.PPModel as PPModel
 
@@ -131,7 +131,7 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node: PPTree.TreeNode, met
 
         try:
             tree_node.cmp_val = ope.encrypt(num)
-        except e:
+        except Exception as e:
             raise Exception("An error occurred during OPE encryption", e)
 
         hmac_code = hmac_msg(prf_hash_key, tree_node.feature_name)
@@ -147,16 +147,16 @@ def enc_tree_node(he_pub_key, prf_hash_key, ope, tree_node: PPTree.TreeNode, met
         tree_node.value = paillier.encrypt(he_pub_key, tree_node.value)
 
 
-def enc_xgboost_model(ppBoostKey: PPBoostKey, trees: PPModel, metaData):
+def enc_xgboost_model(ppModelKey: PPModelKey, trees: PPModel, metaData):
     """
     Encrypts the model (trees) to an encrypted format.
-    :param ppBoostKey: the pp boost key wrapper.
+    :param ppModelKey: the model key wrapper.
     :param metaData: metaData containing min, max information
     :param trees: the model as an input (a list of trees)
     """
-    he_pub_key = ppBoostKey.get_public_key()
-    prf_hash_key = ppBoostKey.get_prf_key()
-    ope = ppBoostKey.get_ope_encryptor()
+    he_pub_key = ppModelKey.get_public_key()
+    prf_hash_key = ppModelKey.get_prf_key()
+    ope = ppModelKey.get_ope_encryptor()
 
     for t in trees.trees:
         enc_tree_node(he_pub_key, prf_hash_key, ope, t, metaData)
