@@ -272,9 +272,9 @@ def parse_subtree(s, lvl):
     # '\w' means find all word characters - e.g. matches a "word" character: a letter or digit
     # or underbar [a-zA-Z0-9_] (Note that \w contains underscore)
     # '\s' means whitespace
-    # '.' and '-' are literal characters
+    # '_', ',', '.', and '-' are literal characters
     # Thus, a feature name is a sequence of one or more of these characters.
-    feature_name_regex = r'[\w\s.-]+'
+    feature_name_regex = r'[\.?]+'
 
     # a regular expression for parsing a leaf node, which has the pattern '<int>:leaf=<float>'
     leaf_regex_str = r'(?P<id>\d+):leaf=(?P<val>' + number_regex + ')'
@@ -302,7 +302,7 @@ def parse_subtree(s, lvl):
 
     interior_regex_match = interior_node_regex.match(current_node)
     if interior_regex_match is None:
-        raise Exception("Invalid tree:\n" + current_node + "\nNote that column names can only contain alpha-numeric characters, whitespace, '.', or '-'.")
+        raise Exception("Invalid tree:\n" + current_node + "\nNote that column names can only contain alpha-numeric characters, whitespace, '_', ',', '.', or '-'.")
 
     # otherwise, we have successfully parsed an interior node
 
