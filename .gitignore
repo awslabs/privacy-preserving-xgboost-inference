@@ -12,3 +12,5 @@ develop-eggs/
 dist/
 *.ipynb_checkpoints/
 examples/tree.txt
+.venv
+.vscode
