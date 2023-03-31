@@ -270,7 +270,7 @@ def parse_subtree(s, lvl):
 
     # a regex for parsing feature names
     # This reads all characters lazily until the delimiter for the feature name '<' is reached
-    feature_name_regex = r'.+?'
+    feature_name_regex = r'[^<]+'
 
     # a regular expression for parsing a leaf node, which has the pattern '<int>:leaf=<float>'
     leaf_regex_str = r'(?P<id>\d+):leaf=(?P<val>' + number_regex + ')'
