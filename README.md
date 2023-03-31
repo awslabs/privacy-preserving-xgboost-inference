@@ -11,7 +11,7 @@ An extended abstract of this work (https://arxiv.org/abs/2011.04789) appears in 
 
 This package requires python>=3.8. Install the dependencies with
 
- - python -m pip install -r requirements.txt
+ - python -m pip install .
 
 This command installs the dependencies in a specific order.
 
@@ -19,6 +19,8 @@ Run the tests with:
 - cd test
 - python -m pytest
 
+Install dependencies required to run the examples with:
+- python -m pip install .[examples]
 Run the examples with:
 - cd examples
 - jupyter nbconvert --to notebook --execute foo.ipynb --output foo.ipynb
